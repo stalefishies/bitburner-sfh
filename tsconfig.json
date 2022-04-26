@@ -1,0 +1,21 @@
+{
+  "include": ["./src/**/*"],
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2015",
+
+    "outDir": "dist",
+
+    "baseUrl": "./src/",
+    "paths": {
+        "netscript": ["types/NetscriptDefinitions.d.ts"],
+        "sfh":       ["types/SFH.d.ts"],
+        "/sfh/*":    ["sfh/*"]
+    },
+
+    "strict": true,
+    "sourceMap": false,
+    "skipLibCheck": false,
+    "forceConsistentCasingInFileNames": true
+  }
+}
