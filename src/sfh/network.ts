@@ -4,55 +4,17 @@ import { fmtm, fmtr } from "/sfh/lib.js";
 
 const cluster_name = (i: number): string => `sfh-${i.toFixed(0).padStart(2, "0")}`;
 const script_cache: { [key: string]: string } = {};
+const backdoor_names = new Set<string>();
 
 export async function sfhMain(ns: NS) {
-    if (sfh.can.purchase) {
-        const cluster_max = ns.getPurchasedServerLimit();
-        let min_cluster_ram = Infinity;
-        let max_cluster_ram = 8;
-        for (let i = 0; i < cluster_max; ++i) {
-            if (sfh.network[cluster_name(i)]) {
-                min_cluster_ram = Math.min(min_cluster_ram, sfh.network[cluster_name(i)].ram);
-                max_cluster_ram = Math.max(max_cluster_ram, sfh.network[cluster_name(i)].ram);
-            } else {
-                min_cluster_ram = 0;
-            }
-        }
-
-        if (min_cluster_ram < ns.getPurchasedServerMaxRam()) {
-            let index = -1;
-            for (let i = 0; i < cluster_max; ++i) {
-                let node = sfh.network[cluster_name(i)];
-                if (node == null || (node.ram == min_cluster_ram && ns.getServerUsedRam(cluster_name(i)) === 0)) {
-                    index = i;
-                    break;
-                }
-            }
-
-            if (index >= 0) {
-                let new_ram = max_cluster_ram * (max_cluster_ram == min_cluster_ram ? 2 : 1);
-                let cost = ns.getPurchasedServerCost(new_ram);
-
-                if (cost <= sfh.player.money / 5) {
-                    while (ns.getPurchasedServerCost(new_ram * 2) <= sfh.player.money / 10) {
-                        new_ram *= 2;
-                        cost = ns.getPurchasedServerCost(new_ram);
-                    }
-
-                    ns.deleteServer(cluster_name(index));
-                    ns.purchaseServer(cluster_name(index), new_ram);
-                    sfh.player.money = ns.getServerMoneyAvailable("home");
-
-                    try {
-                        const server = ns.getServer(cluster_name(index));
-                        if (sfh.network[cluster_name(index)] == null) {
-                            sfh.netAdd(ns.getServer(cluster_name(index)), ["home"], 1);
-                        } else {
-                            sfh.network[cluster_name(index)].ram = new_ram;
-                        }
-                    } catch {}
-                }
-            }
+    for (let i = 0; i < 25; ++i) {
+        const name = cluster_name(i);
+        if (sfh.network[name] == null) {
+            try {
+                const server = ns.getServer(name);
+                sfh.netAdd(server, ["home"], 1);
+                sfh.network.home.edges.add(name);
+            } catch {}
         }
     }
 
@@ -86,6 +48,7 @@ export async function sfhMain(ns: NS) {
             ram:     reserve,
             threads: 1
         };
+        sfh.procs.set.add(sfh.procs.home);
     }
     
     for (const node of sfh.nodes()) {
@@ -157,11 +120,11 @@ export async function sfhMain(ns: NS) {
 
     if (sfh.can.scripts) {
         const share_ram = Math.max(sfh.network.home.ram / 64, 4);
-        for (const proc of sfh.procs.share) { if (!proc.alive) { sfh.procs.share.delete(proc); } }
+        for (const proc of sfh.procs.sharing) { if (!proc.alive) { sfh.procs.sharing.delete(proc); } }
         for (const node of sfh.nodes(n => !n.owned && n.root && n.ram >= 4 && n.ram <= share_ram)) {
             if (node.used_ram == 0) {
                 const host = { name: node.name, ram: node.ram, threads: node.ram / 4 };
-                sfh.netProc(sfh.procs.share, ns.exec.bind(ns), "/bin/share.js", host);
+                sfh.netProc(sfh.procs.sharing, ns.exec.bind(ns), "/bin/share.js", host);
             }
         }
         sfh.netSort();
@@ -186,27 +149,23 @@ export async function sfhMain(ns: NS) {
 
         if (!sfh.procs.backdoor?.alive) { sfh.procs.backdoor = null; }
         if (sfh.can.automate && !sfh.procs.backdoor) {
+            if (backdoor_names.size == 0) {
+                for (const name of [
+                    "w0r1d_d43m0n", "CSEC", "avmnite-02h", "I.I.I.I", "run4theh111z",
+                    "ecorp", "megacorp", "b-and-a", "blade", "nwo", "clarkinc",
+                    "omnitek", "4sigma", "kwaigong", "fulcrumtech", "fulcrumassets"
+                ]) { backdoor_names.add(name); }
+                for (const node of sfh.nodes(n => !n.owned)) { backdoor_names.add(node.name); }
+            }
+
             let target = null;
-            for (const name in [
-                "w0r1d_d43m0n", "CSEC", "avmnite-02h", "I.I.I.I", "run4theh111z",
-                "ecorp", "megacorp", "b-and-a", "blade", "nwo", "clarkinc",
-                "omnitek", "4sigma", "kwaigong", "fulcrumtech", "fulcrumassets"
-            ]) {
+            for (const name of backdoor_names) {
                 const node = sfh.network[name];
                 if (!node || (!sfh.can.bitnode && node.name === "w0r1d_d43m0n")) { continue; }
 
                 if (!node.backdoor && node.root && sfh.player.skill >= node.skill) {
                     target = node;
                     break;
-                }
-            }
-
-            if (!target) {
-                for (const node of sfh.nodes()) {
-                    if (!node.backdoor && !node.owned && node.root && sfh.player.skill >= node.skill) {
-                        target = node;
-                        break;
-                    }
                 }
             }
 

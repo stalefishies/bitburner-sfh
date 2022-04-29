@@ -22,6 +22,7 @@ export async function main(ns: NS) {
                 sfh.state.work = null;
             }
             
+            // TODO: set this as current work even if we haven't joined yet
             if (work.org.joined && work.org.base_rep < work.rep) {
                 new_work = { type: work.org.faction ? "faction" : "company", org: work.org };
                 break;

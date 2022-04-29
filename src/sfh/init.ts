@@ -151,7 +151,7 @@ export async function main(ns: NS) {
         state:   {} as S.State,
         player:  {} as S.Player,
         network: {},
-        procs:   { set: new Set(), pools: [], home: null, share: new Set(), exp: new Set(),
+        procs:   { set: new Set(), pools: [], home: null, sharing: new Set(), exp: new Set(),
             backdoor: null, contract: null, total_ram: 0, free_ram: 0, max_ram: 0 },
         hacking: {},
         trading: { stocks: {}, list: [], init: false, ready: false, time: 0 }
@@ -294,7 +294,7 @@ export async function main(ns: NS) {
                     sfh.state.goal.have_goal = true;
                     if (!sfh.state.augs.queued.has(aug)) {
                         this_augs.push(aug);
-                        max_rep = Math.max(max_rep, data.augs[aug].rep);
+                        max_rep = Math.max(max_rep, data.augs[aug].rep * sfh.player.bitnode.aug_rep);
                     }
                 }
             }

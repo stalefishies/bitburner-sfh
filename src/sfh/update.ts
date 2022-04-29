@@ -9,7 +9,7 @@ export async function main(ns: NS) {
         if (!faction.enemies || faction.enemies.length == 0) { ns.joinFaction(name); }
     }
 
-    if (sfh.can.automate) {
+    if (sfh.can.working) {
         if (sfh.state.continent === "Europe") {
             ns.joinFaction("Volhaven");
         } else if (sfh.state.continent === "Asia") {

@@ -293,7 +293,7 @@ export type Processes = {
     home:      Proc | null;
     backdoor:  Proc | null;
     contract:  Proc | null;
-    share:     Set<Proc>;
+    sharing:   Set<Proc>;
     exp:       Set<Proc>;
 
     total_ram: number;
@@ -301,41 +301,40 @@ export type Processes = {
     max_ram:   number;
 };
 
-export type HackJob = {
-    procs:    Set<Proc>;
-    time:     number;
-    end_time: number;
-    scripts:  number;
-    dps:      number;
+export type HackingJob = {
+    procs:     Set<Proc>;
+    time:      number;
+    end_time:  number;
+    scripts:   number;
+    dps:       number;
 } & ({
-    type:     "adhoc";
-    money:    number;
-    level:    number;
+    type:      "adhoc";
+    end_money: number;
+    end_level: number;
 } | {
-    type:     "batch";
-    quit:     boolean;
-    skill:    number;
-    t0:       number;
-    depth:    number;
-    period:   number;
-    threads:  [number, number, number, number];
-    hosts:    [string, string, string, string][];
+    type:      "batch";
+    quit:      boolean;
+    skill:     number;
+    t0:        number;
+    depth:     number;
+    period:    number;
+    threads:   [number, number, number, number];
+    hosts:     [string, string, string, string][];
 });
 
-export type HackParams = {
+export type HackingParams = {
     target: Node;
-    job:    HackJob | null;
+    job:    HackingJob | null;
+    dps:    number;
     skill:  number;
 
-    prep_time: number;
-    hack_time: number;
-
-    single: { threads: number; prob: number; money: number; dps: number; prep_time: number; };
+    prep:   { money: number, level: number, time: number };
+    single: { threads: number; prob: number; money: number; dps: number; };
     batch:  { t0: number; depth: number; period: number; threads: [number, number, number, number]; dps: number; };
 };
 
 export type Hacking = {
-    [target: string]: HackParams;
+    [target: string]: HackingParams;
 };
 
 export type Stock = {

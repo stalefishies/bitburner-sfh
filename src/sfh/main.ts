@@ -57,8 +57,6 @@ async function sfhMain(ns: NS) {
         await runModule(ns, "work");
         perf.push(performance.now() - perf_begin);
         await runModule(ns, "hacking");
-        perf.push(performance.now() - perf_begin);
-        await runModule(ns, "trading");
         let perf_end = performance.now();
         perf.push(perf_end - perf_begin);
 
@@ -147,18 +145,25 @@ export async function main(ns: NS) {
             if (sfh.state.goal.have_goal) {
                 const goal = sfh.state.goal;
 
-                ns.tprintf("Work:");
+                let header = true;
                 for (let i = 0; i < goal.work.length; ++i) {
+                    if (header) { ns.tprintf("Work:"); header = false; }
+
                     const work = goal.work[i];
-                    ns.tprintf("    %8.3e %s: %s",
+                    sfh.print("    {0,3,3,e} {7} {}",
                         work.rep, work.org.faction ? "Faction" : "Company", work.org.name);
                 }
 
-                ns.tprintf("Augmentations:");
+                header = true;
+                let augs_installed = sfh.state.augs.queued.size;
                 for (let i = 0; i < goal.augs.length; ++i) {
-                    const aug = goal.augs[i].name;
-                    ns.tprintf("    %11s %8.3e %s",
-                        fmtm(data.augs[aug].cost), data.augs[aug].rep, aug);
+                    if (header) { ns.tprintf("Augs:"); header = false; }
+
+                    const aug  = goal.augs[i].name;
+                    const cost = data.augs[aug].cost * sfh.player.bitnode.aug_cost;
+                    sfh.print("    {0,3,3,e} {0,m} {0,m} {}",
+                        data.augs[aug].rep * sfh.player.bitnode.aug_rep,
+                        cost, cost * 1.9 ** augs_installed++, aug);
                 }
             } else {
                 ns.tprintf("(no goal)");
@@ -169,13 +174,14 @@ export async function main(ns: NS) {
         case "procs": {
             let seen_procs = new Set();
 
-            let sets: [string, Set<S.Proc>][] = [["share", sfh.procs.share], ["exp", sfh.procs.exp]];
+            let sets: [string, Set<S.Proc>][] = [["share", sfh.procs.sharing], ["exp", sfh.procs.exp]];
             for (const [type, set] of sets) {
                 if (set.size === 0) { continue; }
 
                 let alloc: { [host: string]: number } = {};
                 for (let proc of set) {
                     seen_procs.add(proc);
+                    if (!proc.alive) { continue; }
 
                     alloc[proc.host] ??= 0;
                     alloc[proc.host] += proc.ram;
@@ -191,9 +197,18 @@ export async function main(ns: NS) {
 
             for (const params of Object.values(sfh.hacking)) {
                 if (params.job) {
+                    let threads = [0, 0, 0];
                     let alloc: { [host: string]: number } = {};
                     for (let proc of params.job.procs) {
                         seen_procs.add(proc);
+                        if (!proc.alive) { continue; }
+
+                        if      (proc.script === "/bin/hack.js") { threads[0] += proc.threads; }
+                        else if (proc.script === "/bin/grow.js") { threads[1] += proc.threads; }
+                        else if (proc.script === "/bin/weak.js") { threads[2] += proc.threads; }
+                        else if (proc.script !== "/bin/batch.js") {
+                            sfh.print("Unknown script on {} params: {}", params.target.name, proc.script);
+                        }
 
                         alloc[proc.host] ??= 0;
                         alloc[proc.host] += proc.ram;
@@ -203,17 +218,18 @@ export async function main(ns: NS) {
                         }
                     }
 
-                    sfh.print("{t} {t} {5} {}", params.job.time, params.job.end_time, params.job.type,
-                        params.target.name);
+                    sfh.print("{5} {18} {t} {t} H {5,d} G {5,d} W {5,d}", params.job.type, params.target.name,
+                        params.job.time, params.job.end_time, threads[0], threads[1], threads[2]);
                     for (const host in alloc) { sfh.print("    {10,10} {0,r}", host, alloc[host]); }
                 }
             }
 
             let header = false;
             for (const proc of sfh.procs.set) {
-                if (seen_procs.has(proc)) { continue; }
+                if (seen_procs.has(proc) || !proc.alive) { continue; }
                 if (!header) { sfh.print("Other procs:"); header = true; }
-                sfh.print("    {10,10} {0,r} {} {}", proc.host, proc.ram, proc.script, proc.args?.join() ?? "");
+                sfh.print("    {10,10} {t} {0,r} {} {}", proc.host, proc.time,
+                    proc.ram, proc.script, proc.args?.join() ?? "");
             }
         } break;
 
