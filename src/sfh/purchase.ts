@@ -5,8 +5,8 @@ export async function main(ns: NS) {
     if (!sfh.can.purchase) { return; }
     const money = (() => ns.getServerMoneyAvailable("home"));
 
-    const can_buy = function(cost: number, min_money: number, soft_cap = 0) {
-        return ((cost <= soft_cap || soft_cap === 0) && cost <= money() - min_money)
+    const canBuy = function(cost: number, min_money: number, allow_frac = 0) {
+        return (allow_frac === 0 || (cost <= allow_frac * sfh.state.goal.money) && cost <= money() - min_money)
             || cost <= money() - min_money - sfh.state.goal.money;
     }
     
@@ -19,13 +19,13 @@ export async function main(ns: NS) {
     if (!sfh.state.factions["Tian Di Hui"].joined) {
         faction_money = 1e6;
         faction_city  = "Chongqing";
-        if (sfh.can.working && sfh.state.city !== "Chongqing" && can_buy(200e3, faction_money)) {
+        if (sfh.can.working && sfh.state.city !== "Chongqing" && canBuy(200e3, faction_money)) {
             if (ns.travelToCity("Chongqing")) { sfh.state.city = "Chongqing"; }
         }
     }
 
-    if (can_buy(1.5e6, faction_money)) { ns.purchaseProgram("FTPCrack.exe");  }
-    if (can_buy(5.0e6, faction_money)) { ns.purchaseProgram("relaySMTP.exe"); }
+    if (canBuy(1.5e6, faction_money)) { ns.purchaseProgram("FTPCrack.exe");  }
+    if (canBuy(5.0e6, faction_money)) { ns.purchaseProgram("relaySMTP.exe"); }
 
     while (ns.getUpgradeHomeRamCost() < Math.min(5e6, money() - 1e6)) { if (!ns.upgradeHomeRam()) { break; } }
 
@@ -39,14 +39,18 @@ export async function main(ns: NS) {
         if (faction_city == null && !sfh.state.factions[city].joined) {
             faction_money = Math.max(faction_money, data.factions[city].reqs.money ?? 0);
             faction_city  = city;
-            if (sfh.can.automate && sfh.state.city != city && can_buy(200e3, faction_money)) {
+            if (sfh.can.automate && sfh.state.city != city && canBuy(200e3, faction_money)) {
                 if (ns.travelToCity(city)) { sfh.state.city = city; }
             }
         }
     }
 
-    if (can_buy( 30e6, faction_money)) { ns.purchaseProgram("HTTPWorm.exe");  }
-    if (can_buy(250e6, faction_money)) { ns.purchaseProgram("SQLInject.exe"); }
+    if (canBuy( 30e6, faction_money))       { ns.purchaseProgram("HTTPWorm.exe");       }
+    if (canBuy(250e6, faction_money))       { ns.purchaseProgram("SQLInject.exe");      }
+    if (canBuy(500e3, faction_money, 0.01)) { ns.purchaseProgram("DeepscanV1.exe");     }
+    if (canBuy( 25e6, faction_money, 0.01)) { ns.purchaseProgram("DeepscanV2.exe");     }
+    if (canBuy(  1e6, faction_money, 0.01)) { ns.purchaseProgram("AutoLink.exe");       }
+    if (canBuy(500e3, faction_money, 0.01)) { ns.purchaseProgram("ServerProfiler.exe"); }
 
     const donate_favour = 150 * sfh.player.bitnode.faction_favour;
     for (const work of sfh.state.goal.work) {
@@ -68,7 +72,7 @@ export async function main(ns: NS) {
         } else { break; }
     }
 
-    while (can_buy(ns.getUpgradeHomeRamCost(), faction_money, sfh.state.goal.money / 5)) {
+    while (canBuy(ns.getUpgradeHomeRamCost(), faction_money, 0.2)) {
         if (!ns.upgradeHomeRam()) { break; }
     }
 
@@ -98,8 +102,8 @@ export async function main(ns: NS) {
         let new_ram = max_cluster_ram * (max_cluster_ram == min_cluster_ram ? 2 : 1);
         let cost = ns.getPurchasedServerCost(new_ram);
 
-        if (index >= 0 && can_buy(cost, faction_money, sfh.state.goal.money / 10)) {
-            while (can_buy(ns.getPurchasedServerCost(new_ram * 2), faction_money, sfh.state.goal.money / 10)) {
+        if (index >= 0 && canBuy(cost, faction_money, 0.1)) {
+            while (canBuy(ns.getPurchasedServerCost(new_ram * 2), faction_money, 0.1)) {
                 new_ram *= 2;
                 cost = ns.getPurchasedServerCost(new_ram);
             }

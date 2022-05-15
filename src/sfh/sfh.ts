@@ -2,6 +2,8 @@ import { NS } from "netscript";
 import * as S from "sfh";
 import { fmtm, fmtp, clamp } from "/sfh/lib.js";
 
+import { runCorp } from "/sfh/corp.js";
+
 declare const React: any;
 
 class SFH implements S.SFH {
@@ -11,6 +13,7 @@ class SFH implements S.SFH {
     reload:  boolean;
 
     can:  S.Permissions;
+    bb:   S.Bitburner;
     ui:   S.UI;
     time: S.Timing;
 
@@ -20,6 +23,7 @@ class SFH implements S.SFH {
     procs:    S.Processes;
     hacking:  S.Hacking;
     trading:  S.Trading;
+    corp:     S.Corp;
 
     constructor(sfh: { [K in keyof SFH as (SFH[K] extends Function | boolean ? never : K)]: SFH[K] }) {
         this.install = false;
@@ -28,6 +32,7 @@ class SFH implements S.SFH {
         this.reload  = false;
 
         this.can  = sfh.can;
+        this.bb   = sfh.bb;
         this.ui   = sfh.ui;
         this.time = sfh.time;
 
@@ -37,9 +42,30 @@ class SFH implements S.SFH {
         this.procs   = sfh.procs;
         this.hacking = sfh.hacking;
         this.trading = sfh.trading;
+        this.corp    = sfh.corp;
     }
 
-    terminal?: { print(text: string): void, printRaw(elem: HTMLElement): void };
+    getBitburnerInternals() {
+        const names: (keyof S.Bitburner)[] = ["router", "player", "terminal"];
+        const divs = eval("document").querySelectorAll("div");
+
+        for (const name of names) {
+            find_prop: for (const div of divs) {
+                const props = div[Object.keys(div)[1]];
+                if (props?.children?.props?.[name]) {
+                    this.bb[name] = props.children.props[name];
+                    break find_prop;
+                } else if (Array.isArray(props?.children)) {
+                    for (let child of props.children) {
+                        if (child?.props?.[name]) {
+                            this.bb[name] = child.props[name];
+                            break find_prop;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
 /*
         s   min max
@@ -270,28 +296,13 @@ class SFH implements S.SFH {
     }
     
     print(fmt: string, ...args: any[]) {
-        const doc = eval("document");
-        if (this.terminal == null) {
-            outer: for (const div of doc.querySelectorAll("div")) {
-                const props = div[Object.keys(div)[1]];
-                if (props?.children?.props?.terminal) {
-                    this.terminal = props.children.props.terminal;
-                    break outer;
-                } else if (Array.isArray(props?.children)) {
-                    for (let child of props.children) {
-                        if (child?.props?.terminal) {
-                            this.terminal = child.props.terminal;
-                            break outer;
-                        }
-                    }
-                }
-            }
-
-            if (this.terminal == null) { return; }
+        if (this.bb.terminal == null) { 
+            this.getBitburnerInternals();
+            if (this.bb.terminal == null) { return; }
         }
 
         const output = this.format(fmt, ...args);
-        this.terminal.printRaw(output as any);
+        this.bb.terminal.printRaw(output as any);
     }
 
     uiCreate(ns: NS) {
@@ -455,6 +466,8 @@ class SFH implements S.SFH {
         pushButton("Purchase",  "purchase");
         pushButton("Contracts", "contracts");
         pushButton("Batching",  "batching");
+        pushButton("Trading",   "trading");
+        pushButton("Corp",      "corp");
         pushButton("Working",   "working");
         pushButton("Automate",  "automate");
 
@@ -477,6 +490,11 @@ class SFH implements S.SFH {
         sfh.ui.aug_next  = pushText(sfh.ui.augs, "center");
         sfh.ui.aug_cost  = pushText(sfh.ui.augs, "center");
         sfh.ui.aug_total = pushText(sfh.ui.augs, "center");
+
+        sfh.ui.corp = pushContainer();
+        sfh.ui.corp_profit   = pushText(sfh.ui.corp, "center");
+        sfh.ui.corp_progress = pushText(sfh.ui.corp, "center");
+        sfh.ui.corp_product  = pushText(sfh.ui.corp, "center");
 
         this.uiUpdate();
     }
@@ -509,11 +527,18 @@ class SFH implements S.SFH {
         }
 
         const updateStatExp = (stat: S.UIStat, name: string) => {
-            const plr = this.player as unknown as { [key: string]: number };
-            const raw = (Math.log(plr[name + "_exp"] + 534.5) * 32 - 200) * plr[name + "_mult"];
-            const exp_lo = Math.max(Math.exp((plr[name] / plr[name + "_mult"] + 200) / 32) - 534.5, 0);
-            const exp_hi = Math.max(Math.exp(((plr[name] + 1) / plr[name + "_mult"] + 200) / 32) - 534.5, 0);
-            updateStat(stat, (Math.floor(raw * 10) / 10).toFixed(1), plr[name + "_exp"], exp_lo, exp_hi);
+            const plr = this.player as unknown as { [key: string]: any };
+            let level = typeof plr[name]           === "number" ? plr[name]           : 1;
+            let exp   = typeof plr[name + "_exp"]  === "number" ? plr[name + "_exp"]  : 0;
+            let mult  = typeof plr[name + "_mult"] === "number" ? plr[name + "_mult"] : 1;
+
+            const bn = this.player.bitnode as unknown as { [key: string]: any };
+            mult *= typeof bn[name] === "number" ? bn[name] : 1;
+
+            const raw = (Math.log(exp + 534.5) * 32 - 200) * mult;
+            const exp_lo = Math.max(Math.exp((level / mult + 200) / 32) - 534.5, 0);
+            const exp_hi = Math.max(Math.exp(((level + 1) / mult + 200) / 32) - 534.5, 0);
+            updateStat(stat, (Math.floor(raw * 10) / 10).toFixed(1), exp, exp_lo, exp_hi);
         }
 
         const updateStatTime = (stat: S.UIStat, time: number) => {
@@ -556,8 +581,17 @@ class SFH implements S.SFH {
 
         updateStatGoal(this.ui.money, this.player.money, money_goal, fmtm);
         updateStatTime(this.ui.money, money_time);
-        updateStatExp(this.ui.skill, "skill");
-        updateStatTime(this.ui.skill, 0);
+
+        if (this.player.skill < this.state.exp_skill) {
+            const string = this.player.skill.toFixed(0) + " / " + this.state.exp_skill.toFixed(0);
+
+            updateStat(this.ui.skill, string, this.player.skill, 1, this.state.exp_skill);
+            updateStatTime(this.ui.skill, this.state.exp_time);
+        } else {
+            updateStatExp(this.ui.skill, "skill");
+            updateStatTime(this.ui.skill, Number.POSITIVE_INFINITY);
+        }
+
         updateStatGoal(this.ui.rep, rep_cur, rep_goal);
         updateStatTime(this.ui.rep, rep_time);
         updateStatGoal(this.ui.hp, this.player.cur_hp, this.player.hp,
@@ -567,7 +601,7 @@ class SFH implements S.SFH {
         updateStatExp(this.ui.dex, "dex");
         updateStatExp(this.ui.agi, "agi");
         updateStatExp(this.ui.cha, "cha");
-        updateStatGoal(this.ui.int, this.player.int, 256, (v) => v.toFixed(0));
+        updateStatExp(this.ui.int, "int");
 
         for (const button of this.ui.button_list) {
             if (this.can[button.name]) {
@@ -581,11 +615,11 @@ class SFH implements S.SFH {
 
         if (sfh.state.work) {
             const type_tr: { [name: string]: string } = {
-                "faction"    : "Faction Work",
-                "company"    : "Company Work",
-                "program"    : "Creating Program",
-                "university" : "University Course",
-                "crime"      : "Comitting Crime",
+                "faction" : "Faction Work",
+                "company" : "Company Work",
+                "program" : "Creating Program",
+                "study"   : "University or Gym",
+                "crime"   : "Comitting Crime",
             };
 
             const org_tr: { [name: string]: string } = {
@@ -642,6 +676,37 @@ class SFH implements S.SFH {
             this.ui.aug_cost.innerText  = " Cost:            --";
             this.ui.aug_total.innerText = "Total:            --";
         }
+
+        if (sfh.state.has_corp) {
+            this.ui.corp_profit.innerText = this.format("Pro: {13,m}/s", this.corp.profit).join("");
+            if (this.corp.public) {
+                this.ui.corp_progress.innerText = this.format("Div: {13,m}/s", this.corp.dividends).join("");
+            } else {
+                this.ui.corp_progress.innerText = this.format("{6,d}: {m}",
+                    this.corp.round, this.corp.offer).join("");
+            }
+            let product_name = null;
+            let product_dev  = 0;
+            let product_time = 0;
+            sfh.corp.products.forEach(function (p, i) {
+                if (p.development < 100 && p.development > product_dev) {
+                    product_name = i.toFixed(0).padStart(3, "0");
+                    product_dev  = p.development / 100;
+                    product_time = p.time;
+                }
+            });
+            if (product_name == null) {
+                this.ui.corp_product.innerText = "--";
+            } else if (product_time < 0) {
+                this.ui.corp_product.innerText = this.format("{}    --   ", product_name).join("");
+            } else {
+                this.ui.corp_product.innerText = this.format("{} {t}", product_name, product_time).join("");
+            }
+        } else {
+            this.ui.corp_profit.innerText   = "";
+            this.ui.corp_progress.innerText = "No corporation";
+            this.ui.corp_product.innerText  = "";
+        }
     }
 
     playerUpdate(ns: NS, player: ReturnType<NS["getPlayer"]>) {
@@ -673,10 +738,6 @@ class SFH implements S.SFH {
         this.player.cha = player.charisma;
         this.player.int = player.intelligence;
 
-        this.player.int_mult = function(weight = 1) {
-            return (1 + weight * player.intelligence ** 0.8 / 600);
-        }
-
         this.player.skill_exp = player.hacking_exp;
         this.player.str_exp = player.strength_exp;
         this.player.def_exp = player.defense_exp;
@@ -690,6 +751,11 @@ class SFH implements S.SFH {
         this.player.dex_mult = player.dexterity_mult;
         this.player.agi_mult = player.agility_mult;
         this.player.cha_mult = player.charisma_mult;
+
+        this.player.int_exp = this.bb.player?.intelligence_exp ?? 0;
+        this.player.int_mult = function(weight = 1) {
+            return (1 + weight * player.intelligence ** 0.8 / 600);
+        }
 
         this.player.skill_exp_mult = player.hacking_exp_mult;
         this.player.str_exp_mult = player.strength_exp_mult;
@@ -759,10 +825,15 @@ class SFH implements S.SFH {
             } as any } break;
 
             case "Studying or Taking a class at university": { this.state.work = {
-                type:  "university",
+                type:  "study",
                 desc:  player.className,
                 org:   null,
             } as any } break;
+
+            default: {
+                this.state.work = null;
+                throw new Error(`Unknown work type: ${player.workType}`);
+            } break;
         }
 
         if (this.state.work) {
@@ -785,6 +856,14 @@ class SFH implements S.SFH {
             this.state.work.dex_rate   = player.workDexExpGainRate * rate;
             this.state.work.agi_rate   = player.workAgiExpGainRate * rate;
             this.state.work.cha_rate   = player.workChaExpGainRate * rate;
+
+            this.state.work.goal = false;
+            for (const goal of this.state.goal.work) {
+                if (sfh.state.work?.org?.name === goal.org.name && goal.org.base_rep < goal.rep) {
+                    this.state.work.goal = true;
+                    break;
+                }
+            }
         }
     }
 
@@ -1002,6 +1081,8 @@ class SFH implements S.SFH {
         if (typeof target === "string") { target = this.network[target]; }
         return new Calc(this.player, target, cores);
     }
+
+    async corpUpdate(C: NS["corporation"], log?: (str: string) => unknown) { await runCorp(C, log); }
 }
 export default SFH;
 

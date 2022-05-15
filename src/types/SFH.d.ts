@@ -7,6 +7,8 @@ export type Permissions = {
     purchase:  boolean;     // can spend money
     contracts: boolean;     // can run coding contracts
     batching:  boolean;     // can run batch hacks on the network
+    trading:   boolean;     // can trade stocks
+    corp:      boolean;     // can run corporation
     working:   boolean;     // can manage factions and companies
     automate:  boolean;     // can assume no manual input
 };
@@ -18,6 +20,12 @@ export type UIStat = {
     bar_bg:  HTMLDivElement;
     bar_fg:  HTMLDivElement;
     time?:   HTMLTableCellElement;
+};
+
+export type Bitburner = {
+    router:   any;
+    player:   any;
+    terminal: any;
 };
 
 export type UI = {
@@ -55,6 +63,10 @@ export type UI = {
         aug_next:  HTMLDivElement;
         aug_cost:  HTMLDivElement;
         aug_total: HTMLDivElement;
+    corp:     HTMLDivElement;
+        corp_profit:   HTMLDivElement;
+        corp_progress: HTMLDivElement;
+        corp_product:  HTMLDivElement;
 };
 
 export type Timing = {
@@ -66,6 +78,7 @@ export type Org = {
     name:     string;
     faction:  boolean;
     joined:   boolean;
+    finished: boolean;
     favour:   number;
     base_rep: number;
     rep:      number;
@@ -73,6 +86,10 @@ export type Org = {
     dual?:    Org;
     title?:   string;
 };
+
+export type Continent = "America" | "Europe" | "Asia";
+export type City      = "Sector-12" | "Aevum" | "Volhaven" | "Chongqing" | "New Tokyo" | "Ishima";
+export type WorkType  = "faction" | "company" | "crime" | "program" | "study";
 
 export type State = {
     goal: {
@@ -87,9 +104,10 @@ export type State = {
     companies: { [company: string]: Org };
 
     work: {
-        type:  "faction" | "company" | "crime" | "program" | "university";
+        type:  WorkType;
         desc:  string;
         org:   Org | null;
+        goal:  boolean;
         focus: boolean;
 
         money:      number;
@@ -111,9 +129,12 @@ export type State = {
         cha_rate:   number;
     } | null;
 
-    continent: "America" | "Europe" | "Asia";
-    city: "Sector-12" | "Aevum" | "Volhaven" | "Chongqing" | "New Tokyo" | "Ishima";
-    location: string;
+    continent: Continent;
+    city:      City;
+    location:  string;
+
+    exp_skill: number;
+    exp_time:  number;
 
     has_tor:             boolean;
     has_brutessh:        boolean;
@@ -122,6 +143,8 @@ export type State = {
     has_httpworm:        boolean;
     has_sqlinject:       boolean;
     has_formulas:        boolean;
+    has_basic_factions:  boolean;
+    has_basics:          boolean;
     has_trading_base:    boolean;
     has_trading:         boolean;
     has_stock_data_base: boolean;
@@ -169,7 +192,7 @@ export type Bitnode = {
     cluster_softcap : number;
     stock_data_base : number;
     stock_data      : number;
-    corp_softcap    : number;
+    corp_dividends  : number;
     corp_valuation  : number;
     gang_softcap    : number;
     bb_rank         : number;
@@ -291,6 +314,7 @@ export type Processes = {
     pools:     Node[];
 
     home:      Proc | null;
+    corp:      Proc | null;
     backdoor:  Proc | null;
     contract:  Proc | null;
     sharing:   Set<Proc>;
@@ -357,6 +381,28 @@ export type Trading = {
     time:   number;
 };
 
+export type Corp = {
+    public:     boolean;
+    wait_ticks: number;
+    divisions:  Set<string>;
+
+    funds:     number;
+    profit:    number;
+    round:     number;
+    offer:     number;
+    div_frac:  number;
+    dividends: number;
+
+    products: {
+        development: number,
+        time:        number,
+        price_ticks: number,
+        price_power: number,
+        amount:      number[],
+        change:      number[]
+    }[];
+};
+
 type Host = { name: string, ram: number, alloc?: { [name: string]: number }, threads: number };
 
 export type SFH = {
@@ -366,6 +412,7 @@ export type SFH = {
     install: boolean;
 
     can:  Permissions;
+    bb:   Bitburner;
     ui:   UI;
     time: Timing;
 
@@ -375,6 +422,9 @@ export type SFH = {
     procs:   Processes;
     hacking: Hacking;
     trading: Trading;
+    corp:    Corp;
+
+    getBitburnerInternals(): void;
 
     format(fmt: string, ...args: any[]): (string | HTMLElement)[];
     print(fmt: string, ...args: any[]): void;
@@ -401,6 +451,8 @@ export type SFH = {
     pools(filter?: ((n: Node) => boolean)): Iterable<Node>;
 
     calc(target: Node | string, cores?: number): Calc;
+
+    corpUpdate(C: NS["corporation"], log?: (str: string) => unknown): Promise<void>;
 }
 
 type CalcRet = {

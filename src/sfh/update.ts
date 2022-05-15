@@ -2,8 +2,6 @@ import { NS } from "netscript";
 import * as S from "sfh";
 
 export async function main(ns: NS) {
-    if (sfh.can.automate) { ns.connect("home"); }
-
     for (const name in data.factions) {
         const faction = data.factions[name];
         if (!faction.enemies || faction.enemies.length == 0) { ns.joinFaction(name); }
@@ -48,6 +46,11 @@ export async function main(ns: NS) {
     sfh.state.has_corp            = player.hasCorporation;
     sfh.state.has_bladeburners    = player.inBladeburner;
 
+    for (const aug of ns.getOwnedAugmentations(false)) { sfh.state.augs.add(aug); }
+    for (const aug of ns.getOwnedAugmentations(true)) {
+        if (!sfh.state.augs.has(aug)) { sfh.state.augs.queued.add(aug); }
+    }
+
     for (const faction of player.factions) { sfh.state.factions[faction].joined = true; }
     for (const [name, faction] of Object.entries(sfh.state.factions)) {
         faction.base_rep = ns.getFactionRep(name);
@@ -57,10 +60,21 @@ export async function main(ns: NS) {
         } else {
             faction.rep = faction.base_rep;
         }
+
+        faction.finished = true;
+        for (const aug of data.factions[name].augs) {
+            if (!sfh.state.augs.has(aug) && !sfh.state.augs.queued.has(aug)
+                && faction.rep < data.augs[aug].rep * sfh.player.bitnode.aug_rep)
+            {
+                faction.finished = false;
+                break;
+            }
+        }
     }
 
     for (const [name, company] of Object.entries(sfh.state.companies)) {
         company.joined   = name in player.jobs;
+        company.finished = company.dual?.joined ?? true;
         company.title    = player.jobs[name] ?? null;
         company.favour   = ns.getCompanyFavor(name);
         company.base_rep = ns.getCompanyRep(name);
@@ -71,17 +85,29 @@ export async function main(ns: NS) {
         } else {
             company.rep = company.base_rep;
         }
+
     }
+
+    sfh.state.has_basic_factions = sfh.state.factions["Tian Di Hui"]?.joined ?? false;
+    if (sfh.state.continent === "Europe") {
+        sfh.state.has_basic_factions &&= sfh.state.factions["Volhaven"] ?.joined ?? false;
+    } else if (sfh.state.continent === "Asia") {
+        sfh.state.has_basic_factions &&= sfh.state.factions["Chongqing"]?.joined ?? false;
+        sfh.state.has_basic_factions &&= sfh.state.factions["New Tokyo"]?.joined ?? false;
+        sfh.state.has_basic_factions &&= sfh.state.factions["Ishima"]   ?.joined ?? false;
+    } else {
+        sfh.state.has_basic_factions &&= sfh.state.factions["Sector-12"]?.joined ?? false;
+        sfh.state.has_basic_factions &&= sfh.state.factions["Aevum"]    ?.joined ?? false;
+    }
+
+    sfh.state.has_basics = sfh.state.has_tor && sfh.state.has_brutessh && sfh.state.has_ftpcrack
+        && sfh.state.has_relaysmtp && sfh.state.has_httpworm && sfh.state.has_sqlinject
+        && sfh.state.has_basic_factions;
 
     sfh.state.location = player.location;
     if (sfh.state.city != player.city) {
         if (sfh.state.city != null) { sfh.can.automate = false; }
         sfh.state.city = player.city as any;
-    }
-
-    for (const aug of ns.getOwnedAugmentations(false)) { sfh.state.augs.add(aug); }
-    for (const aug of ns.getOwnedAugmentations(true)) {
-        if (!sfh.state.augs.has(aug)) { sfh.state.augs.queued.add(aug); }
     }
 
     for (let i = sfh.state.goal.augs.length - 1; i >= 0; --i) {
@@ -113,7 +139,7 @@ export async function main(ns: NS) {
         }
     }
 
-    sfh.install = sfh.can.install
+    sfh.install = sfh.can.install && sfh.can.automate
         && sfh.state.goal.have_goal
         && sfh.state.goal.augs.length == 0
         && sfh.state.goal.work.length == 0;

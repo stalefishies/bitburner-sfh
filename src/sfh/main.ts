@@ -54,9 +54,9 @@ async function sfhMain(ns: NS) {
         perf.push(performance.now() - perf_begin);
         await runModule(ns, "purchase");
         perf.push(performance.now() - perf_begin);
-        await runModule(ns, "work");
+        await runModule(ns, "working");
         perf.push(performance.now() - perf_begin);
-        await runModule(ns, "hacking");
+        await runModule(ns, "scripts");
         let perf_end = performance.now();
         perf.push(perf_end - perf_begin);
 
@@ -228,7 +228,7 @@ export async function main(ns: NS) {
             for (const proc of sfh.procs.set) {
                 if (seen_procs.has(proc) || !proc.alive) { continue; }
                 if (!header) { sfh.print("Other procs:"); header = true; }
-                sfh.print("    {10,10} {t} {0,r} {} {}", proc.host, proc.time,
+                sfh.print("    {6,d} {10,10} {t} {0,r} {} {}", proc.pid, proc.host, proc.time,
                     proc.ram, proc.script, proc.args?.join() ?? "");
             }
         } break;
@@ -262,7 +262,7 @@ export async function main(ns: NS) {
         case "batch":
         case "batches":
         case "batching": {
-            ns.run("/sfh/hacking.js", 1, ...ns.args.slice(1));
+            ns.run("/sfh/scripts.js", 1, ...ns.args.slice(1));
         } break;
 
         case "stock":

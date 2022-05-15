@@ -10,7 +10,8 @@
     "paths": {
         "netscript": ["types/NetscriptDefinitions.d.ts"],
         "sfh":       ["types/SFH.d.ts"],
-        "/sfh/*":    ["sfh/*"]
+        "/sfh/*":    ["sfh/*"],
+        "/util/*":   ["util/*"]
     },
 
     "strict": true,

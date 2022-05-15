@@ -6,14 +6,20 @@ export async function main(ns: NS) {
         let target = ns.args[0] as string;
         let begin  = ns.args[1] as number;
 
-        while (begin > performance.now()) {
-            await ns.asleep(begin - performance.now());
+        let forever = false;
+        if (begin === Number.POSITIVE_INFINITY) {
+            forever = true;
+        } else {
+            while (begin > performance.now()) {
+                await ns.asleep(begin - performance.now());
+            }
         }
         
         const opts: BasicHGWOptions = {};
-        const symbol = globalThis.sfh?.network?.[target]?.symbol;
-        if (symbol != null) { opts.stock = sfh.trading.stocks[symbol].forecast < 0.5; }
+        const symbol   = sfh?.network?.[target]?.symbol;
+        const forecast = symbol ? sfh.trading.stocks[symbol]?.forecast : null;
+        if (symbol != null && forecast != null) { opts.stock = (forecast < 0.5); }
 
-        await ns.hack(target, opts);
+        do { await ns.hack(target, opts); } while (forever);
     } catch (error: any) { ns.print(error.toString()); }
 }

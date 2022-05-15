@@ -5049,10 +5049,13 @@ export async function main(ns: NS) {
                 fields[name] = [];
 
                 let job = data.jobs[entry];
-                while (job.nextPosition != null) {
-                    job = data.jobs[job.nextPosition];
-                    if (!(company.companyPositions as any)[job.name]) { break; }
+                for (;;) {
                     fields[name].push(job);
+
+                    if (job.nextPosition) {
+                        job = data.jobs[job.nextPosition];
+                        if (!(company.companyPositions as any)[job.name]) { break; }
+                    } else { break; }
                 }
             }
         }

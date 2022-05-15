@@ -6,10 +6,15 @@ export async function main(ns: NS) {
         let target = ns.args[0] as string;
         let begin  = ns.args[1] as number;
 
-        while (begin > performance.now()) {
-            await ns.asleep(begin - performance.now());
+        let forever = false;
+        if (begin === Number.POSITIVE_INFINITY) {
+            forever = true;
+        } else {
+            while (begin > performance.now()) {
+                await ns.asleep(begin - performance.now());
+            }
         }
         
-        await ns.weaken(target);
+        do { await ns.weaken(target); } while (forever);
     } catch (error: any) { ns.print(error.toString()); }
 }

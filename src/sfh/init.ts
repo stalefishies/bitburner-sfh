@@ -7,15 +7,13 @@ const aug_sets: AugSet[] = [{
     "Tian Di Hui": new Set([
         "ADR-V1 Pheromone Gene",
         "Social Negotiation Assistant (S.N.A)"
-    ])
-}, {
+    ]),
     "CyberSec": new Set([
         "Neurotrainer I",
         "Synaptic Enhancement Implant",
         "BitWire",
         "Cranial Signal Processors - Gen I",
-        "Cranial Signal Processors - Gen II"
-    ]),
+    ])
 }, {
     "NiteSec": new Set([
         "BitWire",
@@ -141,21 +139,26 @@ export async function main(ns: NS) {
         bitnode:   true, install:   true,
         scripts:   true, purchase:  true,
         contracts: true, batching:  true,
+        trading:   true, corp:      true,
         working:   true, automate:  true
     };
 
     globalThis.sfh = new SFH({
         can:     permissions,
+        bb:      {} as S.Bitburner,
         ui:      {} as S.UI,
         time:    { now: 0, perf: {} },
         state:   {} as S.State,
         player:  {} as S.Player,
         network: {},
-        procs:   { set: new Set(), pools: [], home: null, sharing: new Set(), exp: new Set(),
+        procs:   { set: new Set(), pools: [], home: null, corp: null, sharing: new Set(), exp: new Set(),
             backdoor: null, contract: null, total_ram: 0, free_ram: 0, max_ram: 0 },
         hacking: {},
-        trading: { stocks: {}, list: [], init: false, ready: false, time: 0 }
+        trading: { stocks: {}, list: [], init: false, ready: false, time: 0 },
+        corp:    { public: false, wait_ticks: 0, divisions: new Set(), funds: 0, profit: 0,
+            round: 0, offer: 0, div_frac: 0, dividends: 0, products: [] }
     });
+    sfh.getBitburnerInternals();
     sfh.playerUpdate(ns, player);
     
     let bitnode = null;
@@ -173,7 +176,7 @@ export async function main(ns: NS) {
     sfh.player.bitnode.cct_money       = bitnode?.CodingContractMoney        ?? 1
     sfh.player.bitnode.company_exp     = bitnode?.CompanyWorkExpGain         ?? 1
     sfh.player.bitnode.company_money   = bitnode?.CompanyWorkMoney           ?? 1
-    sfh.player.bitnode.corp_softcap    = bitnode?.CorporationSoftCap         ?? 1
+    sfh.player.bitnode.corp_dividends  = bitnode?.CorporationSoftCap         ?? 1
     sfh.player.bitnode.corp_valuation  = bitnode?.CorporationValuation       ?? 1
     sfh.player.bitnode.crime_exp       = bitnode?.CrimeExpGain               ?? 1
     sfh.player.bitnode.crime_money     = bitnode?.CrimeMoney                 ?? 1
@@ -234,7 +237,8 @@ export async function main(ns: NS) {
     for (const faction in data.factions) {
         const favour = ns.getFactionFavor(faction);
         const joined = player.factions.includes(faction);
-        sfh.state.factions[faction] = { name: faction, faction: true, joined, favour, base_rep: 0, rep: 0 };
+        sfh.state.factions[faction] = { name: faction, faction: true, joined, finished: false,
+            favour, base_rep: 0, rep: 0 };
        
         const hostname = data.factions[faction].server;
         if (hostname) { sfh.state.factions[faction].node = sfh.network[hostname]; }
@@ -243,7 +247,8 @@ export async function main(ns: NS) {
             const company = data.factions[faction].company as string;
             const joined  = company in player.jobs;
             const favour  = ns.getCompanyFavor(company);
-            sfh.state.companies[company] = { name: company, faction: false, joined, favour, base_rep: 0, rep: 0 };
+            sfh.state.companies[company] = { name: company, faction: false, joined, finished: false,
+                favour, base_rep: 0, rep: 0 };
 
             if (hostname) { sfh.state.companies[company].node = sfh.network[hostname]; }
 
