@@ -136,7 +136,7 @@ async function sfhMain(ns: NS) {
     trading.list.sort((s, t) => t.forecast - s.forecast);
     trading.time  = sfh.time.now;
     trading.ready = list[0].history.length >= 100;
-    if (!sfh.can.purchase || !trading.ready) { return; }
+    if (!sfh.can.trading || !trading.ready) { return; }
 
     // Buy/sell stocks here
 }

@@ -7,7 +7,7 @@ export async function main(ns: NS) {
     const target = sfh.network[ns.args[0] as string];
     if (target == null) { throw new Error(`Trying to batch invalid target ${ns.args[0]}`); }
 
-    const job = sfh.hacking[target.name]?.job;
+    const job = sfh.hacking.params[target.name]?.job;
     if (job == null) {
         throw new Error(`Could not get batch job for ${target.name}`);
     } else if (job.type != "batch") {

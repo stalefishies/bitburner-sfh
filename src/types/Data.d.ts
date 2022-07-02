@@ -5,7 +5,7 @@ export type Aug = {
     cost     : number;
     rep      : number;
     prereqs  : string[];
-    mults    : ReturnType<NS["getAugmentationStats"]>;
+    mults    : ReturnType<NS["singularity"]["getAugmentationStats"]>;
     factions : string[];
 }
 
@@ -39,45 +39,45 @@ export type Faction = {
 }
 
 export type Job = {
-    name                   : string;
-    nextPosition           : string | null;
-    baseSalary             : number;
-    repMultiplier          : number;
-    requiredHacking        : number;
-    requiredStrength       : number;
-    requiredDefense        : number;
-    requiredDexterity      : number;
-    requiredAgility        : number;
-    requiredCharisma       : number;
-    requiredReputation     : number;
-    hackingEffectiveness   : number;
-    strengthEffectiveness  : number;
-    defenseEffectiveness   : number;
-    dexterityEffectiveness : number;
-    agilityEffectiveness   : number;
-    charismaEffectiveness  : number;
-    hackingExpGain         : number;
-    strengthExpGain        : number;
-    defenseExpGain         : number;
-    dexterityExpGain       : number;
-    agilityExpGain         : number;
-    charismaExpGain        : number;
+    name       : string;
+    next       : string | null;
+    salary     : number;
+    rep_mult   : number;
+    skill_req  : number;
+    str_req    : number;
+    def_req    : number;
+    dex_req    : number;
+    agi_req    : number;
+    cha_req    : number;
+    rep_req    : number;
+    skill_mult : number;
+    str_mult   : number;
+    def_mult   : number;
+    dex_mult   : number;
+    agi_mult   : number;
+    cha_mult   : number;
+    skill_rate : number;
+    str_rate   : number;
+    def_rate   : number;
+    dex_rate   : number;
+    agi_rate   : number;
+    cha_rate   : number;
 };
 
 export type FactionWork = {
-    rep_skill_mult : number;
-    rep_str_mult   : number;
-    rep_def_mult   : number;
-    rep_dex_mult   : number;
-    rep_agi_mult   : number;
-    rep_cha_mult   : number;
-    rep_int_mult   : number;
-    skill_rate     : number;
-    str_rate       : number;
-    def_rate       : number;
-    dex_rate       : number;
-    agi_rate       : number;
-    cha_rate       : number;
+    skill_mult : number;
+    str_mult   : number;
+    def_mult   : number;
+    dex_mult   : number;
+    agi_mult   : number;
+    cha_mult   : number;
+    int_mult   : number;
+    skill_rate : number;
+    str_rate   : number;
+    def_rate   : number;
+    dex_rate   : number;
+    agi_rate   : number;
+    cha_rate   : number;
 };
 
 export type Company = {

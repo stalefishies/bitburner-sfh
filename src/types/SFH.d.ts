@@ -5,9 +5,11 @@ export type Permissions = {
     install:   boolean;     // can install augmentations or soft reset
     scripts:   boolean;     // can run scripts on the network
     purchase:  boolean;     // can spend money
-    contracts: boolean;     // can run coding contracts
+    hacking:   boolean;     // can lower servers below max money / min security
     batching:  boolean;     // can run batch hacks on the network
     trading:   boolean;     // can trade stocks
+    hnet:      boolean;     // can spend hashes
+    contracts: boolean;     // can run coding contracts
     corp:      boolean;     // can run corporation
     working:   boolean;     // can manage factions and companies
     automate:  boolean;     // can assume no manual input
@@ -26,6 +28,7 @@ export type Bitburner = {
     router:   any;
     player:   any;
     terminal: any;
+    save():   void;
 };
 
 export type UI = {
@@ -37,10 +40,8 @@ export type UI = {
     prompt:   any;
 
     sfh:      HTMLDivElement;
-    header:   HTMLDivElement;
-        title: HTMLElement;
-        saveGame: HTMLButtonElement;
-        killScripts: HTMLButtonElement;
+    header:   HTMLButtonElement;
+        title: HTMLDivElement;
     stats:    HTMLDivElement;
         money: UIStat;
         skill: UIStat;
@@ -54,15 +55,19 @@ export type UI = {
         int:   UIStat;
     buttons:  HTMLDivElement;
         button_list: { name: keyof Permissions; button: HTMLButtonElement; }[]
-    work:     HTMLDivElement;
-        type: HTMLDivElement;
-        org:  HTMLDivElement;
-        desc: HTMLDivElement;
+    work:     HTMLButtonElement;
+        type:  HTMLDivElement;
+        org:   HTMLDivElement;
+        desc:  HTMLDivElement;
     augs:     HTMLDivElement;
         aug_title: HTMLDivElement;
         aug_next:  HTMLDivElement;
         aug_cost:  HTMLDivElement;
         aug_total: HTMLDivElement;
+    gang:     HTMLDivElement;
+        gang_status: HTMLDivElement;
+        gang_dps:    HTMLDivElement;
+        gang_time:   HTMLDivElement;
     corp:     HTMLDivElement;
         corp_profit:   HTMLDivElement;
         corp_progress: HTMLDivElement;
@@ -74,6 +79,18 @@ export type Timing = {
     perf: { [name: string]: number };
 };
 
+export type MoneyType =
+    "goal" | "home" | "cores" | "program" | "cluster" | "hacknet" | "stocks";
+export type Money = {
+    curr:  number;
+    total: number;
+
+    frac:  { [type in MoneyType]: number; }
+    spent: { [type in MoneyType]: number; }
+
+    can_train: boolean;
+}
+
 export type Org = {
     name:     string;
     faction:  boolean;
@@ -83,58 +100,83 @@ export type Org = {
     base_rep: number;
     rep:      number;
     node?:    Node;
-    dual?:    Org;
+    dual?:    string;
     title?:   string;
+};
+
+export type Goal = {
+    type:  null | "program" | "faction" | "augmentation" | "work" | "corp";
+    desc:  string;
+
+    money:       number;
+    money_next:  number;
+    money_total: number;
+
+    augs: { org: Org, name: string }[];
+    work: { org: Org, rep:  number }[];
+    orgs: Set<Org>;
+
+    skill:  number;
+    cha:    number;
+    combat: number;
+    karma:  number;
+
+    corp:       boolean;
+    corp_ticks: number;
 };
 
 export type Continent = "America" | "Europe" | "Asia";
 export type City      = "Sector-12" | "Aevum" | "Volhaven" | "Chongqing" | "New Tokyo" | "Ishima";
-export type WorkType  = "faction" | "company" | "crime" | "program" | "study";
+
+export type Work = {
+    type:  "faction" | "company" | "crime" | "program" | "gym" | "university" | "graft";
+    desc:  string;
+    org:   Org | null;
+    goal:  boolean;
+    focus: boolean;
+
+    money:      number;
+    rep:        number;
+    skill_exp:  number;
+    str_exp:    number;
+    def_exp:    number;
+    dex_exp:    number;
+    agi_exp:    number;
+    cha_exp:    number;
+
+    money_rate: number;
+    rep_rate:   number;
+    skill_rate: number;
+    str_rate:   number;
+    def_rate:   number;
+    dex_rate:   number;
+    agi_rate:   number;
+    cha_rate:   number;
+}
 
 export type State = {
-    goal: {
-        have_goal: boolean;
-        money: number;
-        augs: { org: Org, name: string }[];
-        work: { org: Org, rep:  number }[];
-    };
+    have_goal: boolean;
 
     augs: Set<string> & { queued: Set<string>; };
     factions:  { [faction: string]: Org };
     companies: { [company: string]: Org };
 
-    work: {
-        type:  WorkType;
-        desc:  string;
-        org:   Org | null;
-        goal:  boolean;
-        focus: boolean;
-
-        money:      number;
-        rep:        number;
-        skill_exp:  number;
-        str_exp:    number;
-        def_exp:    number;
-        dex_exp:    number;
-        agi_exp:    number;
-        cha_exp:    number;
-
-        money_rate: number;
-        rep_rate:   number;
-        skill_rate: number;
-        str_rate:   number;
-        def_rate:   number;
-        dex_rate:   number;
-        agi_rate:   number;
-        cha_rate:   number;
-    } | null;
+    prev_work: Work | null;
+    work:      Work | null;
 
     continent: Continent;
     city:      City;
     location:  string;
 
-    exp_skill: number;
-    exp_time:  number;
+    goto: {
+        city: City;
+        desc: string;
+    } | null;
+
+    skill_rate: number;
+    skill_time: number;
+    money_rate: number;
+    money_time: number;
 
     has_tor:             boolean;
     has_brutessh:        boolean;
@@ -143,12 +185,12 @@ export type State = {
     has_httpworm:        boolean;
     has_sqlinject:       boolean;
     has_formulas:        boolean;
-    has_basic_factions:  boolean;
     has_basics:          boolean;
     has_trading_base:    boolean;
     has_trading:         boolean;
     has_stock_data_base: boolean;
     has_stock_data:      boolean;
+    has_gang:            boolean;
     has_corp:            boolean;
     has_bladeburners:    boolean;
 };
@@ -183,7 +225,7 @@ export type Bitnode = {
     infil_money     : number;
     infil_rep       : number;
     class_exp       : number;
-    hacknet_money   : number;
+    hacknet_prod    : number;
     cct_money       : number;
     home_cost       : number;
     cluster_cost    : number;
@@ -240,11 +282,11 @@ export type Player = {
     time_mult:           number;
     prob_mult:           number;
     grow_mult:           number;
-    hnet_money_mult:     number;
-    hnet_node_mult:      number;
-    hnet_level_mult:     number;
-    hnet_ram_mult:       number;
-    hnet_core_mult:      number;
+    hacknet_prod_mult:   number;
+    hacknet_node_mult:   number;
+    hacknet_level_mult:  number;
+    hacknet_ram_mult:    number;
+    hacknet_core_mult:   number;
     faction_rep_mult:    number;
     company_rep_mult:    number;
     work_money_mult:     number;
@@ -267,6 +309,7 @@ export type Player = {
 export type Node = {
     name:       string;
     owned:      boolean;
+    hnet:       boolean;
     skill:      number;
     cores:      number;
     used_ram:   number;
@@ -297,16 +340,17 @@ export type Network = { [name: string]: Node };
 
 type Arg = (string | number | boolean);
 export type Proc = {
-    pid:     number;
-    alive:   boolean;
-    time:    number;
-    script:  string;
-    host:    string;
-    ram:     number;
-    threads: number;
-    args?:   Arg[];
-    pids?:   Set<number>;
-    alloc?:  { [name: string]: number };
+    pid:       number;
+    alive:     boolean;
+    time:      number;
+    end_time?: number;
+    script:    string;
+    host:      string;
+    ram:       number;
+    threads:   number;
+    args?:     Arg[];
+    pids?:     Set<number>;
+    alloc?:    { [name: string]: number };
 };
 
 export type Processes = {
@@ -342,6 +386,8 @@ export type HackingJob = {
     t0:        number;
     depth:     number;
     period:    number;
+    money:     number;
+    prob:      number;
     threads:   [number, number, number, number];
     hosts:     [string, string, string, string][];
 });
@@ -349,17 +395,38 @@ export type HackingJob = {
 export type HackingParams = {
     target: Node;
     job:    HackingJob | null;
+    prob:   number;
     dps:    number;
     skill:  number;
 
     prep:   { money: number, level: number, time: number };
-    single: { threads: number; prob: number; money: number; dps: number; };
-    batch:  { t0: number; depth: number; period: number; threads: [number, number, number, number]; dps: number; };
+    single: { threads: number; money: number; dps: number; };
+    batch:  { t0: number; depth: number; period: number; money: number;
+        threads: [number, number, number, number]; dps: number; };
 };
 
 export type Hacking = {
-    [target: string]: HackingParams;
+    params:     { [target: string]: HackingParams; }
+    list:       HackingParams[];
+    min_dps:    number;
+    scripts:    number;
+    batch_time: number;
+
+    dps: number;
+    exp: number;
 };
+
+export type Sleeves = {
+    money_rate: number;
+    karma_rate: number;
+    skill_rate: number;
+    str_rate:   number;
+    def_rate:   number;
+    dex_rate:   number;
+    agi_rate:   number;
+    cha_rate:   number;
+    int_rate:   number;
+}
 
 export type Stock = {
     symbol:     string;
@@ -379,6 +446,27 @@ export type Trading = {
     init:   boolean;
     ready:  boolean;
     time:   number;
+    dps:    number;
+};
+
+export type Hacknet = {
+    hashes:   number;
+    capacity: number;
+    prod:     number;
+    dps:      number;
+};
+
+export type Gang = {
+    state: string;
+    name:  string;
+    size:  number;
+    train: number;
+    time:  number;
+    dps:   number;
+    clash: number;
+    rep:   number;
+
+    training: [boolean, number, number, number][];
 };
 
 export type Corp = {
@@ -392,6 +480,8 @@ export type Corp = {
     offer:     number;
     div_frac:  number;
     dividends: number;
+    research:  number;
+    res_rate:  number;
 
     products: {
         development: number,
@@ -416,12 +506,17 @@ export type SFH = {
     ui:   UI;
     time: Timing;
 
-    state:   State;
     player:  Player;
+    state:   State;
+    money:   Money;
+    goal:    Goal;
     network: Network;
     procs:   Processes;
     hacking: Hacking;
+    sleeves: Sleeves;
     trading: Trading;
+    hnet:    Hacknet;
+    gang:    Gang;
     corp:    Corp;
 
     getBitburnerInternals(): void;
@@ -434,8 +529,12 @@ export type SFH = {
     uiRemove(): void;
     uiUpdate(): void;
 
+    purchase(type: MoneyType, money: (() => number) | null, cost: number | (() => number),
+        callback: (() => unknown) | null, frac?: number): boolean;
+
     playerUpdate(ns: NS, player: ReturnType<NS["getPlayer"]>): void;
-    workUpdate(nsGetPlayer: NS["getPlayer"], nsIsFocused: NS["isFocused"]): void;
+    workUpdate(nsGetPlayer: NS["getPlayer"], nsIsFocused: NS["singularity"]["isFocused"]): void;
+    goalSort(): void;
 
     netAdd(server: ReturnType<NS["getServer"]>, edges: string[], depth: number | null): void;
     netCopy(nsScp: NS["scp"], ...args: (string | string[])[]): void;
@@ -497,18 +596,16 @@ export type Calc = {
     manualWeakTime(level?: number): number;
     backdoorTime(level?: number): number;
 
-    exp(threads: number): number;
+    exp(threads?: number): number;
     expAt(skill: number): number;
     expTo(skill: number): number;
     expRate(): number;
 
     hackFrac(level?: number): number;
-    hackMax(frac: number, level?: number): number;
     hackProb(level?: number): number;
     runHack(threads: number, level_init?: number, money?: number, level?: number, sim?: boolean): CalcRet;
     solveHack(frac: number, level_init?: number, money?: number, level?: number, sim?: boolean): CalcRet;
 
-    growBase(level?: number): number;
     runGrow(threads: number, level_init?: number, money?: number, level?: number, sim?: boolean): CalcRet;
     solveGrow(money_new?: number, level_init?: number, money?: number, level?: number, sim?: boolean): CalcRet;
 

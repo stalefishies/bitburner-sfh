@@ -1,5 +1,7 @@
-import { fmtm } from "/sfh/lib.js";
+import { NS } from "netscript";
+import * as S from "sfh";
 
+/*
 function augIsHacking(name, aug) {
     if (name === "NeuroFlux Governor") { return false; }
     if (name === "Neuroreceptor Management Implant") { return true; }
@@ -30,7 +32,6 @@ function augPrint(ns, name, aug) {
     aug.mults.faction_rep_mult ?? 0, aug.mults.company_rep_mult ?? 0, aug.mults.charisma_mult ?? 0);
 }
 
-/** @param {NS} ns **/
 export async function main(ns) {
     let all_augs = false;
     if (ns.args[0] === "all") {
@@ -70,6 +71,57 @@ export async function main(ns) {
 
             if (augs.length > 0) { ns.tprintf("%s:", faction); }
             for (const aug of augs) { augPrint(ns, aug[0], aug[1]); }
+        }
+    }
+}
+
+*/
+
+export function autocomplete(_: unknown, args: string[]) {
+    if (args.length <= 1) {
+        return ["aug", "faction"];
+    } else if (args[0] === "aug") {
+        return Object.keys(data.augs);
+    } else if (args[0] === "faction") {
+        return Object.keys(data.factions);
+    }
+}
+
+export async function main(ns: NS) {
+    if (ns.args[0] === "aug") {
+        const aug = data.augs[ns.args.slice(1).join(" ")];
+        if (aug == null) {
+            sfh.print("{cr,!Unknown augmentation: }{cr}", ns.args[1]);
+            return;
+        }
+
+        sfh.print("{} {0,m} {0,e}", aug.name, aug.cost, aug.rep);
+
+        if (aug.prereqs.length > 0) {
+            sfh.print("PREREQS:");
+            for (const prereq of aug.prereqs) {
+                sfh.print("    {}", prereq);
+            }
+        }
+
+        if (aug.factions.length > 0) {
+            sfh.print("FACTIONS:");
+            for (const faction of aug.factions) {
+                sfh.print("    {}", faction);
+            }
+        }
+    } else if (ns.args[0] === "faction") {
+        const faction = data.factions[ns.args.slice(1).join(" ")];
+        if (faction == null) {
+            sfh.print("{cr,!Unknown faction: }{cr}", ns.args[1]);
+            return;
+        }
+
+        sfh.print("{}", faction.name);
+
+        const augs = faction.augs.map(s => data.augs[s]);
+        for (const aug of augs) {
+            sfh.print("    {54} {0,m} {0,e}", aug.name, aug.cost, aug.rep);
         }
     }
 }

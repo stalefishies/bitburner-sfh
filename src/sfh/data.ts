@@ -4990,19 +4990,19 @@ export async function main(ns: NS) {
 
     for (const [name, mults] of Object.entries(extra.faction_work)) {
         data.faction_work[name] = {
-            rep_skill_mult : mults[ 0] * 5e-3 / 995,
-            rep_str_mult   : mults[ 1] * 5e-3 / 995,
-            rep_def_mult   : mults[ 2] * 5e-3 / 995,
-            rep_dex_mult   : mults[ 3] * 5e-3 / 995,
-            rep_agi_mult   : mults[ 4] * 5e-3 / 995,
-            rep_cha_mult   : mults[ 5] * 5e-3 / 995,
-            rep_int_mult   : mults[ 6] * 5e-3 / 995,
-            skill_rate     : mults[ 8] * 5e-3,
-            str_rate       : mults[ 9] * 5e-3,
-            def_rate       : mults[10] * 5e-3,
-            dex_rate       : mults[11] * 5e-3,
-            agi_rate       : mults[12] * 5e-3,
-            cha_rate       : mults[13] * 5e-3
+            skill_mult : mults[ 0] * 5e-3 / 995,
+            str_mult   : mults[ 1] * 5e-3 / 995,
+            def_mult   : mults[ 2] * 5e-3 / 995,
+            dex_mult   : mults[ 3] * 5e-3 / 995,
+            agi_mult   : mults[ 4] * 5e-3 / 995,
+            cha_mult   : mults[ 5] * 5e-3 / 995,
+            int_mult   : mults[ 6] * 5e-3 / 995,
+            skill_rate : mults[ 8] * 5e-3,
+            str_rate   : mults[ 9] * 5e-3,
+            def_rate   : mults[10] * 5e-3,
+            dex_rate   : mults[11] * 5e-3,
+            agi_rate   : mults[12] * 5e-3,
+            cha_rate   : mults[13] * 5e-3
         };
     }
 
@@ -5031,7 +5031,31 @@ export async function main(ns: NS) {
     }
 
     for (const [name, position] of Object.entries(dump.companyPositions)) {
-        data.jobs[name] = position;
+        data.jobs[name] = {
+            name       : name,
+            next       : position.nextPosition,
+            salary     : position.baseSalary,
+            rep_mult   : position.repMultiplier,
+            skill_req  : position.requiredHacking,
+            str_req    : position.requiredStrength,
+            def_req    : position.requiredDefense,
+            dex_req    : position.requiredDexterity,
+            agi_req    : position.requiredAgility,
+            cha_req    : position.requiredCharisma,
+            rep_req    : position.requiredReputation,
+            skill_mult : position.hackingEffectiveness,
+            str_mult   : position.strengthEffectiveness,
+            def_mult   : position.defenseEffectiveness,
+            dex_mult   : position.dexterityEffectiveness,
+            agi_mult   : position.agilityEffectiveness,
+            cha_mult   : position.charismaEffectiveness,
+            skill_rate : position.hackingExpGain,
+            str_rate   : position.strengthExpGain,
+            def_rate   : position.defenseExpGain,
+            dex_rate   : position.dexterityExpGain,
+            agi_rate   : position.agilityExpGain,
+            cha_rate   : position.charismaExpGain
+        }
     }
 
     for (const [name, company] of Object.entries(dump.companies)) {
@@ -5052,8 +5076,8 @@ export async function main(ns: NS) {
                 for (;;) {
                     fields[name].push(job);
 
-                    if (job.nextPosition) {
-                        job = data.jobs[job.nextPosition];
+                    if (job.next) {
+                        job = data.jobs[job.next];
                         if (!(company.companyPositions as any)[job.name]) { break; }
                     } else { break; }
                 }

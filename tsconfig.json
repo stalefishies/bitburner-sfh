@@ -11,6 +11,7 @@
         "netscript": ["types/NetscriptDefinitions.d.ts"],
         "sfh":       ["types/SFH.d.ts"],
         "/sfh/*":    ["sfh/*"],
+        "/bin/*":    ["bin/*"],
         "/util/*":   ["util/*"]
     },
 

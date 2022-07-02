@@ -2,9 +2,9 @@ import { NS } from "netscript";
 import * as S from "sfh";
 
 export async function main(ns: NS) {
-    ns.stopAction();
+    ns.singularity.stopAction();
 
-    while (ns.upgradeHomeRam());
+    while (ns.singularity.upgradeHomeRam());
 
     //try { (ns.stock as any).purchaseWseAccount(); } catch {}
     //try { (ns.stock as any).purchaseTixApi();     } catch {}
@@ -19,7 +19,7 @@ export async function main(ns: NS) {
         if (faction.joined) {
             for (const aug of data.factions[name].augs) {
                 if (!sfh.state.augs.has(aug) && !sfh.state.augs.queued.has(aug)) {
-                    ns.purchaseAugmentation(name, aug);
+                    ns.singularity.purchaseAugmentation(name, aug);
                 }
             }
 
@@ -30,8 +30,8 @@ export async function main(ns: NS) {
         }
     }
 
-    if (nfg_faction) { while (ns.purchaseAugmentation(nfg_faction, "NeuroFlux Governor")); }
-    while (ns.upgradeHomeCores());
+    if (nfg_faction) { while (ns.singularity.purchaseAugmentation(nfg_faction, "NeuroFlux Governor")); }
+    while (ns.singularity.upgradeHomeCores());
 
     const factions = [];
     for (const faction of Object.values(sfh.state.factions)) {
@@ -42,10 +42,10 @@ export async function main(ns: NS) {
     if (factions.length > 0) {
         const money = ns.getServerMoneyAvailable("home") / factions.length;
         for (const faction of factions) {
-            ns.donateToFaction(faction.name, money);
+            ns.singularity.donateToFaction(faction.name, money);
         } 
     }
     
-    ns.installAugmentations("/sfh/main.js");
-    ns.softReset("/sfh/main.js");
+    ns.singularity.installAugmentations("/sfh/main.js");
+    ns.singularity.softReset("/sfh/main.js");
 }

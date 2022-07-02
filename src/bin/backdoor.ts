@@ -19,7 +19,7 @@ export async function main(ns: NS) {
     try {
         const cur_server = sfh.bb.player.currentServer;
         sfh.bb.player.currentServer = target;
-        const promise = ns.installBackdoor();
+        const promise = ns.singularity.installBackdoor();
         sfh.bb.player.currentServer = cur_server;
         await promise;
     } catch {
@@ -31,5 +31,5 @@ export async function main(ns: NS) {
     return;
 
     // make sure we still have the RAM cost of singularity.connect so this isn't too exploity
-    ns.connect;
+    ns.singularity.connect;
 }

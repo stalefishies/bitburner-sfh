@@ -1,16 +1,9 @@
 import { NS } from "netscript";
 
-export async function main(ns: NS) {
-    const node = ns.args[0] as string;
-    const file = ns.args[1] as string;
-
-    let type, data;
-    try {
-        type = ns.codingcontract.getContractType(file, node);
-        data = ns.codingcontract.getData(file, node);
-    } catch { throw new Error(`Contract ${file} not found on ${node}`); }
-
+const sleep = () => new Promise(resolve => setTimeout(resolve, 0));
+export async function contract(type: string, data: any): Promise<string[] | string | number | null> {
     let answer = null;
+
     switch (type) {
         case "Algorithmic Stock Trader I":
         case "Algorithmic Stock Trader II":
@@ -25,7 +18,7 @@ export async function main(ns: NS) {
             for (let k = 1; k < 2 * max + 1; ++k) { profit[0][k] = -prices[0]; }
             
             for (let i = 1; i < prices.length; ++i) {
-                await ns.asleep(0);
+                await sleep();
 
                 const price = prices[i];
                 for (let k = 1; k < 2 * max + 1; ++k) {
@@ -47,7 +40,7 @@ export async function main(ns: NS) {
 
             for (let i = 0; i < data.length; ++i) {
                 if (!Number.isFinite(dist[i])) { break; }
-                await ns.asleep(0);
+                await sleep();
 
                 let new_dist = dist[i] + 1;
                 for (let j = i + 1; j <= Math.min(i + data[i], data.length - 1); ++j) {
@@ -63,7 +56,7 @@ export async function main(ns: NS) {
             }
         } break;
 
-        case "Compression I: RLE Encoding": {
+        case "Compression I: RLE Compression": {
             answer = "";
             for (let i = 0; i < data.length;) {
                 let c = data[i++];
@@ -73,7 +66,7 @@ export async function main(ns: NS) {
             }
         } break;
 
-        case "Compression II: LZ Decoding": {
+        case "Compression II: LZ Decompression": {
             answer = "";
             for (let i = 0; i < data.length; ++i) {
                 const literal_length = data.charCodeAt(i) - 0x30;
@@ -91,7 +84,7 @@ export async function main(ns: NS) {
             }
         } break;
 
-        case "Compression III: LZ Encoding": {
+        case "Compression III: LZ Compression": {
             // for state[i][j]:
             //      if i is 0, we're adding a literal of length j
             //      else, we're adding a backreference of offset i and length j
@@ -150,6 +143,13 @@ export async function main(ns: NS) {
 
                         // start new literal
                         set(new_state, 0, 1, string + length + offset);
+
+                        // end current backreference and start new backreference
+                        for (let new_offset = 1; new_offset <= Math.min(9, i); ++new_offset) {
+                            if (data[i - new_offset] === c) {
+                                set(new_state, new_offset, 1, string + length + offset + "0");
+                            }
+                        }
                     }
                 }
 
@@ -180,14 +180,14 @@ export async function main(ns: NS) {
             let curr = new Set([{ e: digits[0].toString(), s: 1, l: 0, r: [digits[0]] }]);
 
             for (let d of digits.slice(1)) {
-                await ns.asleep(0);
+                await sleep();
                 
                 const prev = curr;
                 curr = new Set();
 
                 let i = 0;
                 for (let expr of prev) {
-                    if (++i % 100 == 0) { await ns.asleep(0); }
+                    if (++i % 100 == 0) { await sleep(); }
 
                     if (expr.r.length > 1 || expr.r[0] != 0) {
                         const new_r = expr.r.slice(0, expr.r.length - 1).concat(expr.r[expr.r.length - 1] * 10 + d);
@@ -218,7 +218,7 @@ export async function main(ns: NS) {
             let primes = [];
             let max_n  = Math.sqrt(number);
             for (let i = 0, n = 3; n <= max_n; n += 2) {
-                if (++i % 10000 == 0) { await ns.asleep(0); }
+                if (++i % 10000 == 0) { await sleep(); }
 
                 let prime = true;
                 let max_p = Math.sqrt(n);
@@ -247,7 +247,7 @@ export async function main(ns: NS) {
         case "Generate IP Addresses": {
             const queue = [{ oct: [] as string[], rem: Array.from(data, (x: string) => parseInt(x)) }];
             for (let i = 0; i < queue.length; ++i) {
-                await ns.sleep(0);
+                await sleep();
                 
                 const ip = queue[i];
                 if (ip.oct.length == 4) { continue; }
@@ -270,7 +270,7 @@ export async function main(ns: NS) {
             answer = queue.filter(ip => ip.oct.length == 4 && ip.rem.length == 0).map(ip => ip.oct.join("."));
         } break;
 
-        case "HammingCodes: Integer to encoded Binary": {
+        case "HammingCodes: Integer to Encoded Binary": {
             let int = data;
             let N = Math.floor(Math.log2(int));
             let vec = Array.from({ length: N + 1 }, (_, i) => Math.floor(int / 2 ** (N - i)) % 2);
@@ -369,7 +369,7 @@ export async function main(ns: NS) {
             let merged = [];
             let lo = data[0][0], hi = data[0][1];
             for (let i = 1; i < data.length; ++i) {
-                await ns.asleep(0);
+                await sleep();
 
                 if (data[i][0] <= hi) {
                     hi = Math.max(hi, data[i][1]);
@@ -387,7 +387,7 @@ export async function main(ns: NS) {
         case "Minimum Path Sum in a Triangle": {
             let tri = data;
             for (let i = 1; i < tri.length; ++i) {
-                await ns.asleep(0);
+                await sleep();
                 
                 tri[i][0] += tri[i - 1][0];
                 for (let j = 1; j < tri[i].length - 1; ++j) {
@@ -430,7 +430,7 @@ export async function main(ns: NS) {
                 }
             }
 
-            answer = (success ? colours : []);
+            answer = (success ? colours : "[]");
         } break;
 
         case "Shortest Path in a Grid": {
@@ -483,7 +483,7 @@ export async function main(ns: NS) {
             const queue = [data];
             let length = 0;
             for (let i = 0; i < queue.length; ++i) {
-                await ns.asleep(0);
+                await sleep();
 
                 const string = queue[i];
 
@@ -519,7 +519,7 @@ export async function main(ns: NS) {
         case "Spiralize Matrix": {
             answer = [];
             for (let matrix = data;;) {
-                await ns.asleep(0);
+                await sleep();
 
                 answer.push(...matrix[0]);
                 matrix = matrix.slice(1);
@@ -545,7 +545,7 @@ export async function main(ns: NS) {
             let sum = data[0], min = Math.min(data[0], 0), best = data[0];
 
             for (let x of data.slice(1)) {
-                await ns.asleep(0);
+                await sleep();
 
                 sum += x;
                 min  = Math.min(min, sum);
@@ -568,7 +568,7 @@ export async function main(ns: NS) {
             p[0] = 1;
 
             for (let part of parts) {
-                await ns.asleep(0);
+                await sleep();
                 for (let n = 0; n < N; ++n) {
                     if (n + part <= N) { p[n + part] += p[n]; }
                 }
@@ -596,7 +596,7 @@ export async function main(ns: NS) {
             for (let j = 1; j < W; ++j) { count[0][j] = (data[0][j] == 1 ? 0 : count[0][j - 1]); }
 
             for (let i = 1; i < H; ++i) {
-                await ns.asleep(0);
+                await sleep();
 
                 for (let j = 1; j < W; ++j) {
                     count[i][j] = (data[i][j] == 1 ? 0 : count[i - 1][j] + count[i][j - 1]);
@@ -605,21 +605,31 @@ export async function main(ns: NS) {
             
             answer = count[H - 1][W - 1];
         } break;
-
-        default: {
-            sfh.can.scripts = false;
-            throw new Error(`Cannot solve contract type \"${type}\"`);
-        }
     }
 
+    return answer;
+}
+
+export async function main(ns: NS) {
+    const node = ns.args[0] as string;
+    const file = ns.args[1] as string;
+
+    let type, data;
+    try {
+        type = ns.codingcontract.getContractType(file, node);
+        data = ns.codingcontract.getData(file, node);
+    } catch { throw new Error(`Contract ${file} not found on ${node}`); }
+
+    let answer = await contract(type, data);
+
     if (answer == null) {
-        sfh.can.scripts = false;
-        throw new Error(`Got no answer for contract type \"${type}\"`);
+        sfh.can.contracts = false;
+        throw new Error(`Got null for contract type \"${type}\"`);
     } else {
-        const success = ns.codingcontract.attempt(answer, file, node);
+        const success = ns.codingcontract.attempt(answer as any, file, node);
 
         if (!success) {
-            sfh.can.scripts = false;
+            sfh.can.contracts = false;
             throw new Error(`Incorrect answer for contract type "${type}"
 
 Input data: ${JSON.stringify(data)}

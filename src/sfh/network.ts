@@ -54,6 +54,8 @@ export async function sfhMain(ns: NS) {
     for (const node of sfh.nodes()) {
         const server   = ns.getServer(node.name);
         node.ip        = server.ip;
+        node.money     = server.moneyMax;
+        node.level     = server.minDifficulty;
         node.cur_money = server.moneyAvailable;
         node.cur_level = server.hackDifficulty;
         node.prepped   = node.cur_level == node.level && node.cur_money == node.money;
@@ -77,7 +79,7 @@ export async function sfhMain(ns: NS) {
             try { ns.sqlinject(node.name); ++node.cur_ports; } catch {}
             try { ns.nuke     (node.name); node.root = true; } catch {}
 
-            if (node.root && (node.owned || node.ram >= 2)
+            if (node.root && (node.owned || node.ram >= 2) && !node.hnet
                 && sfh.procs.pools.find(n => n.name == node.name) == null)
             {
                 sfh.procs.pools.push(node);

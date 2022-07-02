@@ -182,14 +182,11 @@ function getInvestment() {
     }
 }
 
-function research(min_research: number, ...names: string[]) {
-    if (C.getDivision("T").research >= min_research) {
-        for (const name of names) {
-            if (!C.hasResearched("T", name)) {
-                log(`Researching ${name}`);
-                C.research("T", name);
-            }
-        }
+function research(min_research: number, name: string) {
+    if (C.hasResearched("T", name)) { return true; }
+    if (C.getDivision("T").research - C.getResearchCost("T", name) >= min_research) {
+        log(`Researching ${name}`);
+        C.research("T", name);
         return true;
     }
     return false;
@@ -238,10 +235,12 @@ function manageProducts() {
                 product.price_power = Math.max(product.price_power, other.price_power);
             }
 
-            research(10e3, "Hi-Tech R&D Laboratory")
-                && research(100e3, "uPgrade: Fulcrum", "uPgrade: Capacity.I")
-                && research(150e3, "uPgrade: Capacity.II")
-                && research(200e3, "Market-TA.I", "Market-TA.II");
+            research(15e3, "Hi-Tech R&D Laboratory")
+                && research(30e3, "uPgrade: Fulcrum")
+                && research(60e3, "uPgrade: Capacity.I")
+                && research(90e3, "uPgrade: Capacity.II")
+                && research(120e3, "Market-TA.I")
+                && research(150e3, "Market-TA.II");
         }
 
         if (product.development < 100) { all_ready = false; }
@@ -387,19 +386,45 @@ export async function runCorp(_C: NS["corporation"], _log?: (str: string) => any
     sfh.corp.funds  = init_corp.funds;
     sfh.corp.profit = init_corp.revenue - init_corp.expenses;
 
-    let dividend_tax = -0.15;
-    if (C.hasUnlockUpgrade(str.dv1)) { dividend_tax += 0.05; }
-    if (C.hasUnlockUpgrade(str.dv2)) { dividend_tax += 0.10; }
-    sfh.corp.dividends = Math.pow(10 * sfh.corp.profit * sfh.corp.div_frac
-        * init_corp.numShares / init_corp.totalShares, sfh.player.bitnode.corp_dividends + dividend_tax) / 10;
 
     for (const division of init_corp.divisions) { sfh.corp.divisions.add(division.name); }
+
+    if (sfh.corp.divisions.has("T")) {
+        const res = C.getDivision("T").research;
+        if (res > sfh.corp.research) { sfh.corp.res_rate = (res - sfh.corp.research) / 10; }
+        sfh.corp.research = res;
+    }
 
     getInvestment();
     if (sfh.corp.wait_ticks > 0) { --sfh.corp.wait_ticks; }
 
     if (sfh.corp.round > 3 && !sfh.corp.public) { C.goPublic(0); sfh.corp.public = true; }
-    if (sfh.corp.public) { C.issueDividends(0.01); sfh.corp.div_frac = 0.01; manageProducts(); }
+    if (sfh.corp.public) {
+        const share_frac = init_corp.numShares / init_corp.totalShares;
+        let dividend_tax = sfh.player.bitnode.corp_dividends - 0.15;
+        if (C.hasUnlockUpgrade(str.dv1)) { dividend_tax += 0.05; }
+        if (C.hasUnlockUpgrade(str.dv2)) { dividend_tax += 0.10; }
+
+        if (sfh.corp.funds <= 0 || sfh.corp.profit <= 1e10) {
+            sfh.corp.div_frac = 0;
+        } else {
+            const frac = (Math.log10(sfh.corp.profit) - 10) / 90;
+            sfh.corp.div_frac = Math.max(Math.min(frac, 1), 0);
+        }
+
+        sfh.corp.dividends = Math.pow(10 * sfh.corp.div_frac * share_frac * sfh.corp.profit, dividend_tax) / 10;
+
+        if (sfh.corp.dividends < 1e20 && sfh.corp.dividends * 3600 < sfh.money.curr) {
+            sfh.corp.div_frac  = 0;
+            sfh.corp.dividends = 0;
+        }
+
+        C.issueDividends(sfh.corp.div_frac);
+        manageProducts();
+    } else {
+        sfh.corp.div_frac  = 0;
+        sfh.corp.dividends = 0;
+    }
 
     for (const city of cities) {
         C.sellMaterial("A", city, "Water",  (C.getMaterial("A", city, "Water" ).qty > 0.1 ? "MAX" : "0"), "0");
@@ -454,12 +479,18 @@ export async function runCorp(_C: NS["corporation"], _log?: (str: string) => any
         getCost():  number;
         purchase(): unknown;
     }[] = [];
-    const pdiv = (sfh.corp.divisions.has("T") ? "T" : "A");
+    const pdiv = (sfh.corp.public ? "T" : "A");
 
     for (const city of cities) {
         purchases.push({ name: city + " office",
             rank: (pdiv === "A" ? 1 : (city === "Sector-12" ? 2 : 10)),
-            getCost:  () => C.getOfficeSizeUpgradeCost(pdiv, city, 3), 
+            getCost: function() {
+                if (C.getOffice(pdiv, city).size >= 999) {
+                    return Number.POSITIVE_INFINITY;
+                } else {
+                    return C.getOfficeSizeUpgradeCost(pdiv, city, 3);
+                }
+            },
             purchase: () => C.upgradeOfficeSize(pdiv, city, 3)});
         purchases.push({ name: city + " warehouse",
             rank: (pdiv === "A" ? 3 : (city === "Sector-12" ? 100 : 1000)),
@@ -600,6 +631,11 @@ export async function main(ns: NS) {
             } else if (sfh.player.bitnode.number === 3) {
                 ns.print("Starting corp with seed money...");
                 sfh.state.has_corp = ns.corporation.createCorporation("SFH", false);
+
+                if (sfh.state.has_corp) {
+                    sfh.money.spent.goal ??= 0;
+                    sfh.money.spent.goal += 150e9;
+                }
             }
 
             if (sfh.state.has_corp) { break; }
@@ -618,7 +654,7 @@ export async function main(ns: NS) {
 
         await sfh.corpUpdate(ns.corporation, ns.print.bind(ns));
 
-        for (const work of sfh.state.goal.work) {
+        for (const work of sfh.goal.work) {
             if (!work.org.faction || !work.org.joined) { continue; }
 
             const funds = ns.corporation.getCorporation().funds;
@@ -645,6 +681,9 @@ export async function main(ns: NS) {
             if (req_bribe > 0 && funds > 100 * req_bribe) {
                 ns.print(`Bribing ${name}...`);
                 ns.corporation.bribe(name, req_bribe, 0);
+            } else if (funds > 1e20) {
+                ns.print(`Bribing ${name}...`);
+                ns.corporation.bribe(name, funds / 10000, 0);
             }
         }
     }
