@@ -1,33 +1,38 @@
-import { NS } from "netscript";
-import * as S from "sfh";
+const faction_continent: { [city in City]: Continent } = {
+    "Sector-12": "America",
+    "Aevum":     "America",
+    "Volhaven":  "Europe",
+    "Chongqing": "Asia",
+    "New Tokyo": "Asia",
+    "Ishima":    "Asia"
+}
 
 export async function main(ns: NS) {
-    for (const name in data.factions) {
-        const faction = data.factions[name];
-        if (!faction.enemies || faction.enemies.length == 0) { ns.singularity.joinFaction(name); }
+    for (const [name, faction] of Object.entries(data.factions)) {
+        const continent = faction_continent[name as City];
+        if (continent != null) {
+            if (sfh.state.continent === continent || sfh.state.continent == null) {
+                ns.singularity.joinFaction(name);
+            }
+        } else if (!faction.enemies || faction.enemies.length == 0) {
+            ns.singularity.joinFaction(name);
+        }
     }
     ns.singularity.joinFaction("Shadows of Anarchy");
 
-    if (sfh.can.automate) {
-        if (sfh.state.continent === "Europe") {
-            ns.singularity.joinFaction("Volhaven");
-        } else if (sfh.state.continent === "Asia") {
-            ns.singularity.joinFaction("Chongqing");
-            ns.singularity.joinFaction("New Tokyo");
-            ns.singularity.joinFaction("Ishima");
-        } else {
-            ns.singularity.joinFaction("Sector-12");
-            ns.singularity.joinFaction("Aevum");
-        }
+    const player = ns.getPlayer();
+    if (player.hp.current < player.hp.max) {
+        const cost = (player.hp.max - player.hp.current) * 100e3;
+        if (100 * cost < player.money) { sfh.x.player.hospitalize(); }
+        ns.singularity.hospitalize;
     }
 
-    const player = ns.getPlayer();
     sfh.playerUpdate(ns, player);
-    sfh.workUpdate(() => player, ns.singularity.isFocused.bind(ns));
+    sfh.workUpdate(ns.singularity.getCurrentWork.bind(ns), ns.singularity.isFocused.bind(ns));
 
     let total_spent = 0;
-    for (const type of Object.keys(sfh.money.spent)) {
-        total_spent += sfh.money.spent[type as S.MoneyType];
+    for (const type of Object.keys(sfh.money.spent) as (keyof typeof sfh.money.spent)[]) {
+        total_spent += sfh.money.spent[type];
     }
     sfh.money.curr  = player.money;
     sfh.money.total = player.money + total_spent;
@@ -47,19 +52,17 @@ export async function main(ns: NS) {
     try { ns.formulas.skills.calculateExp(1, 1); } catch { sfh.state.has_formulas  = false; }
 
     sfh.state.has_tor             = player.tor;
-    sfh.state.has_trading_base    = player.hasWseAccount;
-    sfh.state.has_trading         = player.hasTixApiAccess;
-    sfh.state.has_stock_data_base = player.has4SData;
-    sfh.state.has_stock_data      = player.has4SDataTixApi;
+    sfh.state.has_stocks          = ns.stock.hasWSEAccount() && ns.stock.hasTIXAPIAccess();
+    sfh.state.has_4S              = ns.stock.has4SData() && ns.stock.has4SDataTIXAPI();
     sfh.state.has_gang            = ns.gang.inGang();
     sfh.state.has_corp            = player.hasCorporation;
     sfh.state.has_bladeburners    = player.inBladeburner;
 
     if (sfh.state.has_corp) { sfh.goal.corp = false; }
 
-    for (const aug of ns.singularity.getOwnedAugmentations(false)) { sfh.state.augs.add(aug); }
-    for (const aug of ns.singularity.getOwnedAugmentations(true)) {
-        if (!sfh.state.augs.has(aug)) { sfh.state.augs.queued.add(aug); }
+    for (const name of ns.singularity.getOwnedAugmentations(false)) { sfh.state.augs.add(name); }
+    for (const name of ns.singularity.getOwnedAugmentations(true)) {
+        if (!sfh.state.augs.has(name)) { sfh.state.augs.queued.add(name); }
     }
 
     for (const name of player.factions) {
@@ -69,25 +72,29 @@ export async function main(ns: NS) {
         faction.joined = true;
         sfh.goal.orgs.delete(faction);
 
-        if (name === sfh.state.goto?.city && sfh.state.goto.desc === "faction") { sfh.state.goto = null; }
+        const continent = faction_continent[name as City];
+        if (continent) { sfh.state.continent = continent; }
+
+        if (sfh.state.goto?.type === "faction" && name === sfh.state.goto.desc) { sfh.state.goto = null; }
     }
 
-    for (const [name, faction] of Object.entries(sfh.state.factions)) {
-        faction.base_rep = ns.singularity.getFactionRep(name);
+    for (const faction of Object.values(sfh.state.factions)) {
+        faction.rep = ns.singularity.getFactionRep(faction.name);
 
-        if (sfh.state.work?.type === "faction" && sfh.state.work.org?.name === name) {
-            faction.rep = faction.base_rep + sfh.state.work.rep ?? 0;
-        } else {
-            faction.rep = faction.base_rep;
-        }
-
+        faction.augs.clear();
         faction.finished = true;
-        for (const aug of data.factions[name].augs) {
-            if (!sfh.state.augs.has(aug) && !sfh.state.augs.queued.has(aug)
-                && faction.rep < data.augs[aug].rep * sfh.player.bitnode.aug_rep)
-            {
-                faction.finished = false;
-                break;
+        for (const aug_name of ns.singularity.getAugmentationsFromFaction(faction.name)) {
+            if (aug_name === "NeuroFlux Governor") {
+                faction.augs.add(aug_name);
+                continue;
+            }
+
+            if (!sfh.state.augs.has(aug_name) && !sfh.state.augs.queued.has(aug_name)) {
+                faction.augs.add(aug_name);
+
+                if (faction.rep < data.augs[aug_name].rep * sfh.player.mult.aug_rep) {
+                    faction.finished = false;
+                }
             }
         }
     }
@@ -99,14 +106,7 @@ export async function main(ns: NS) {
         company.finished = sfh.state.factions[company.dual ?? ""]?.joined ?? true;
         company.title    = player.jobs[name] ?? null;
         company.favour   = ns.singularity.getCompanyFavor(name);
-        company.base_rep = ns.singularity.getCompanyRep(name);
-
-        if (sfh.state.work?.type === "company" && sfh.state.work.org?.name === name) {
-            const backdoor = company.node?.backdoor ?? false;
-            company.rep = company.base_rep + (sfh.state.work.rep ?? 0) * (backdoor ? 0.75 : 0.5);
-        } else {
-            company.rep = company.base_rep;
-        }
+        company.rep      = ns.singularity.getCompanyRep(name);
     }
 
     if (!sfh.state.has_gang && sfh.player.karma <= -54000 && sfh.state.factions["Slum Snakes"].joined) {
@@ -132,7 +132,7 @@ export async function main(ns: NS) {
 
     for (let i = sfh.goal.work.length - 1; i >= 0; --i) {
         const work = sfh.goal.work[i];
-        if (work.org.base_rep >= work.rep) {
+        if (work.org.rep >= work.rep) {
             sfh.goal.work.splice(i, 1);
         } else if (!work.org.joined) {
             sfh.goal.orgs.add(work.org);
@@ -146,6 +146,8 @@ export async function main(ns: NS) {
     sfh.goal.money_next  = 0;
     sfh.goal.money_total = 0;
 
+    const aug_multiplier = 1.9 * [1, 0.96, 0.94, 0.93][sfh.bitnode.sf[11]];
+
     if (!sfh.state.has_tor) {
         sfh.goal.type = "program";
         sfh.goal.desc = "TOR";
@@ -154,12 +156,19 @@ export async function main(ns: NS) {
         sfh.goal.type = "program";
         sfh.goal.desc = "BruteSSH.exe";
         sfh.goal.money_next = 500e3;
-    } else if (sfh.goal.orgs.has(sfh.state.factions["Tian Di Hui"])) {
+    } else if (!sfh.state.factions["Tian Di Hui"].joined && !sfh.state.factions["Tian Di Hui"].finished) {
         sfh.goal.type = "faction";
         sfh.goal.desc = "Tian Di Hui";
-        sfh.goal.money_next  = data.factions["Tian Di Hui"].reqs.money ?? 0;
-        sfh.goal.money_next += (sfh.state.city === "Chongqing" || sfh.state.city === "New Tokyo"
-            || sfh.state.city === "Ishima" ? 0 : 200e3);
+        sfh.goal.money_next = data.factions["Tian Di Hui"].reqs.money ?? 0;
+
+        if (sfh.money.curr >= sfh.goal.money_next && !sfh.state.goto) {
+            if (sfh.state.city === "Chongqing" || sfh.state.city === "New Tokyo" || sfh.state.city === "Ishima") {
+                sfh.state.goto = { city: sfh.state.city, type: "faction", desc: "Tian Di Hui" };
+            } else {
+                sfh.state.goto = { city: "Chongqing", type: "faction", desc: "Tian Di Hui" };
+                sfh.goal.money_next += 200e3;
+            }
+        }
     } else if (!sfh.state.has_ftpcrack) {
         sfh.goal.type = "program";
         sfh.goal.desc = "FTPCrack.exe";
@@ -168,32 +177,57 @@ export async function main(ns: NS) {
         sfh.goal.type = "program";
         sfh.goal.desc = "RelaySMTP.exe";
         sfh.goal.money_next = 5e6;
-    } else if (sfh.goal.orgs.has(sfh.state.factions["Sector-12"])) {
+    } else if (sfh.state.continent === "America" && !sfh.state.factions["Sector-12"].joined
+        && !sfh.state.factions["Sector-12"].finished)
+    {
         sfh.goal.type = "faction";
         sfh.goal.desc = "Sector-12";
         sfh.goal.money_next  = data.factions["Sector-12"].reqs.money ?? 0;
         sfh.goal.money_next += (sfh.state.city === "Sector-12" ? 0 : 200e3);
-    } else if (sfh.goal.orgs.has(sfh.state.factions["Chongqing"])) {
+    } else if (sfh.state.continent === "Asia" && !sfh.state.factions["Chongqing"].joined
+        && !sfh.state.factions["Chongqing"].finished)
+    {
         sfh.goal.type = "faction";
         sfh.goal.desc = "Chongqing";
         sfh.goal.money_next  = data.factions["Chongqing"].reqs.money ?? 0;
         sfh.goal.money_next += (sfh.state.city === "Chongqing" ? 0 : 200e3);
-    } else if (sfh.goal.orgs.has(sfh.state.factions["New Tokyo"])) {
+    } else if (sfh.state.continent === "Asia" && !sfh.state.factions["New Tokyo"].joined
+        && !sfh.state.factions["New Tokyo"].finished)
+    {
         sfh.goal.type = "faction";
         sfh.goal.desc = "New Tokyo";
         sfh.goal.money_next  = data.factions["New Tokyo"].reqs.money ?? 0;
         sfh.goal.money_next += (sfh.state.city === "New Tokyo" ? 0 : 200e3);
-    } else if (sfh.goal.orgs.has(sfh.state.factions["Ishima"])) {
+    } else if (sfh.state.continent === "Asia" && !sfh.state.factions["Ishima"].joined
+        && !sfh.state.factions["Ishima"].finished)
+    {
         sfh.goal.type = "faction";
         sfh.goal.desc = "Ishima";
         sfh.goal.money_next  = data.factions["Ishima"].reqs.money ?? 0;
         sfh.goal.money_next += (sfh.state.city === "Ishima" ? 0 : 200e3);
-    } else if (sfh.goal.orgs.has(sfh.state.factions["Aevum"])) {
+    } else if (sfh.player.karma <= -18 && Math.min(sfh.player.str, sfh.player.def, sfh.player.dex, sfh.player.agi) >= 75
+        && !sfh.state.factions["Tetrads"].joined && !sfh.state.factions["Tetrads"].finished)
+    {
+        sfh.goal.type = "faction";
+        sfh.goal.desc = "Tetrads";
+        if (sfh.money.curr >= sfh.goal.money_next && !sfh.state.goto) {
+            if (sfh.state.city === "Chongqing" || sfh.state.city === "New Tokyo" || sfh.state.city === "Ishima") {
+                sfh.state.goto = { city: sfh.state.city, type: "faction", desc: "Tetrads" };
+            } else {
+                sfh.state.goto = { city: "Chongqing", type: "faction", desc: "Tetrads" };
+                sfh.goal.money_next = 200e3;
+            }
+        }
+    } else if (sfh.state.continent === "America" && !sfh.state.factions["Aevum"].joined
+        && !sfh.state.factions["Aevum"].finished)
+    {
         sfh.goal.type = "faction";
         sfh.goal.desc = "Aevum";
         sfh.goal.money_next  = data.factions["Aevum"].reqs.money ?? 0;
         sfh.goal.money_next += (sfh.state.city === "Aevum" ? 0 : 200e3);
-    } else if (sfh.goal.orgs.has(sfh.state.factions["Volhaven"])) {
+    } else if (sfh.state.continent === "Europe" && !sfh.state.factions["Volhaven"].joined
+        && !sfh.state.factions["Volhaven"].finished)
+    {
         sfh.goal.type = "faction";
         sfh.goal.desc = "Volhaven";
         sfh.goal.money_next  = data.factions["Volhaven"].reqs.money ?? 0;
@@ -216,11 +250,11 @@ export async function main(ns: NS) {
         sfh.goal.type  = "augmentation";
         sfh.goal.desc  = aug.name;
         sfh.goal.money_next = data.augs[aug.name].cost
-            * sfh.player.bitnode.aug_cost * 1.9 ** sfh.state.augs.queued.size;
+            * sfh.player.mult.aug_cost * aug_multiplier ** sfh.state.augs.queued.size;
 
-        if (aug.org.favour > 150 * sfh.player.bitnode.faction_favour) {
-            const rep = data.augs[aug.name].rep * sfh.player.bitnode.aug_rep;
-            const donation = (rep - aug.org.rep) / sfh.player.faction_rep_mult * 1e6;
+        if (aug.org.favour > sfh.bitnode.donation) {
+            const rep = data.augs[aug.name].rep * sfh.player.mult.aug_rep;
+            const donation = (rep - aug.org.rep) / sfh.player.mult.faction_rep * 1e6;
             if (donation > 0) { sfh.goal.money_next += donation; }
         }
     } else if (sfh.goal.work.length > 0) {
@@ -229,8 +263,8 @@ export async function main(ns: NS) {
         sfh.goal.type = "work";
         sfh.goal.desc = work.org.name;
 
-        if (work.org.favour > 150 * sfh.player.bitnode.faction_favour) {
-            const donation = (work.rep - work.org.rep) / sfh.player.faction_rep_mult * 1e6;
+        if (work.org.favour > sfh.bitnode.donation) {
+            const donation = (work.rep - work.org.rep) / sfh.player.mult.faction_rep * 1e6;
             if (donation > 0) { sfh.goal.money_next = donation; }
         }
     }
@@ -253,12 +287,13 @@ export async function main(ns: NS) {
 
     let queued_augs = sfh.state.augs.queued.size;
     for (const aug of sfh.goal.augs) {
-        sfh.goal.money_total += data.augs[aug.name].cost * sfh.player.bitnode.aug_cost * 1.9 ** queued_augs++;
+        sfh.goal.money_total += data.augs[aug.name].cost * sfh.player.mult.aug_cost
+            * aug_multiplier ** queued_augs++;
     }
 
     for (const work of sfh.goal.work) {
-        if (work.org.favour > 150 * sfh.player.bitnode.faction_favour) {
-            const donation = (work.rep - work.org.rep) / sfh.player.faction_rep_mult * 1e6;
+        if (work.org.favour > sfh.bitnode.donation) {
+            const donation = (work.rep - work.org.rep) / sfh.player.mult.faction_rep * 1e6;
             if (donation > 0) { sfh.goal.money_total += donation; }
         }
     }
@@ -270,31 +305,32 @@ export async function main(ns: NS) {
     if (sfh.state.money_rate < 0) { sfh.state.money_rate = 0; }
     sfh.state.money_time = 0;
 
-    sfh.state.skill_rate = sfh.hacking.exp + (sfh.state.work?.skill_rate ?? 0) + sfh.sleeves.skill_rate;
-    sfh.state.skill_time = 0;
+    sfh.state.hac_rate = sfh.hacking.exp + (sfh.state.work?.skill_rate ?? 0) + sfh.sleeves.skill_rate;
+    sfh.state.hac_time = 0;
     
     if (sfh.goal.money > sfh.player.money) {
         sfh.state.money_time = (sfh.goal.money - sfh.player.money) / sfh.state.money_rate * 1000;
     }
 
-    if (sfh.goal.skill > sfh.player.skill) {
-        const skill_mult = sfh.player.skill_mult * sfh.player.bitnode.skill;
-        const goal_exp   = Math.max(Math.exp((Math.floor(sfh.goal.skill) / skill_mult + 200) / 32) - 534.5, 0);
-        sfh.state.skill_time = (goal_exp - sfh.player.skill_exp) / sfh.state.skill_rate;
+    if (sfh.goal.hac > sfh.player.hac) {
+        const mult = sfh.player.mult.hac;
+        const goal_exp = Math.max(Math.exp((Math.floor(sfh.goal.hac) / mult + 200) / 32) - 534.5, 0);
+        sfh.state.hac_time = (goal_exp - sfh.player.hac_exp) / sfh.state.hac_rate;
     }
 
-    sfh.install = sfh.can.install && sfh.can.automate && sfh.state.have_goal && sfh.goal.type == null;
-
     const corp_lerp = Math.min(Math.max(sfh.money.total, sfh.goal.money_total / 2, 0) / 150e9, 1);
-    if (sfh.player.bitnode.corp_dividends <= 0.15) { sfh.can.corp = false; }
+    if (sfh.player.mult.corp_dividends <= 0.15) { sfh.can.corp = false; }
     if (sfh.can.automate && sfh.can.corp && !sfh.state.has_corp
         && (150e9 - sfh.player.money) / sfh.state.money_rate <= (30 + corp_lerp * 60) * 60)
     {
         ++sfh.goal.corp_ticks;
-        sfh.install = false;
 
         if (sfh.goal.corp_ticks > 10) { sfh.goal.corp = true; sfh.goal.corp_ticks = 0; }
     } else {
         sfh.goal.corp_ticks = Math.max(sfh.goal.corp_ticks - 2, 0);
+
+        if (sfh.can.install && sfh.can.automate && sfh.state.have_goal && sfh.goal.type == null) {
+            sfh.install = true;
+        }
     }
 }

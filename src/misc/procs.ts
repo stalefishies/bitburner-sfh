@@ -1,6 +1,3 @@
-import { NS } from "netscript";
-import * as S from "sfh";
-
 function printKeys(obj: any) {
     while (obj != null && obj != Object.getPrototypeOf({})) {
         for (let name of Object.getOwnPropertyNames(obj)) {
@@ -17,11 +14,11 @@ export async function main(ns: NS) {
 
         const page = String(ns.args.shift()).substring(1);
         switch (page.toLowerCase()) {
-            case "terminal":      { sfh.bb.router.toTerminal();      } break;
-            case "factions":      { sfh.bb.router.toFactions();      } break;
-            case "augmentations": { sfh.bb.router.toAugmentations(); } break;
-            case "stats":         { sfh.bb.router.toStats();         } break;
-            case "stocks":        { sfh.bb.router.toStocks();        } break;
+            case "terminal":      { sfh.x.router.toTerminal();      } break;
+            case "factions":      { sfh.x.router.toFactions();      } break;
+            case "augmentations": { sfh.x.router.toAugmentations(); } break;
+            case "stats":         { sfh.x.router.toStats();         } break;
+            case "stocks":        { sfh.x.router.toStocks();        } break;
 
             default: {
                 sfh.print("{cr}{cr}{cr}", "Unknown router destination '", page, "'");
@@ -48,7 +45,7 @@ export async function main(ns: NS) {
         }
     }
     
-    if (routed) { sfh.bb.router.toTerminal(); }
+    if (routed) { sfh.x.router.toTerminal(); }
 
     if (object == null) {
         sfh.print("{cr}{cr}{cr}", "Could not find React prop '", ns.args[0], "'");

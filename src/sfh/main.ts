@@ -1,11 +1,17 @@
-import { NS } from "netscript";
-import * as S from "sfh";
-import { fmtm, fmtt, fmtp, fmtr } from "/sfh/lib.js";
+let perf: { [module: string]: [number, number] } = {};
+let perf_begin = 0;
 
 async function runModule(ns: NS, module: string, ...args: string[]) {
+    let t0 = performance.now();
+
     const pid = ns.run(`/sfh/${module}.js`, 1, "sfh", ...args);
     if (pid == 0) { ns.tprintf(`ERROR: Could not run /sfh/${module}.js`); ns.exit(); }
-    while (ns.isRunning(pid)) { await ns.asleep(0); }
+    while (ns.isRunning(pid)) { await ns.sleep(0); }
+
+    if (perf_begin > 0) {
+        const t1 = performance.now();
+        perf[module] = [t1 - t0, t1 - perf_begin];
+    }
 }
 
 async function sfhMain(ns: NS) {
@@ -14,6 +20,8 @@ async function sfhMain(ns: NS) {
 
     sfh.uiInject(ns);
     ns.atExit(() => { globalThis.sfh.uiRemove(); });
+
+    const start_time = new Date(Date.now()).toLocaleTimeString();
 
     const period = 2000;
     main: for (;;) {
@@ -32,6 +40,7 @@ async function sfhMain(ns: NS) {
                 ns.tprintf("INFO: Reloading SFH...");
                 await runModule(ns, "data");
                 await runModule(ns, "init");
+                sfh.uiCreate(ns);
                 sfh.uiInject(ns);
             }
 
@@ -41,36 +50,34 @@ async function sfhMain(ns: NS) {
                 break main;
             }
 
-            await ns.asleep(0);
+            await ns.sleep(0);
         }
 
         sfh.time.now = time;
 
-        const perf = [];
-        const perf_begin = performance.now();
+        perf = {};
+        perf_begin = performance.now();
         await runModule(ns, "update");
-        perf.push(performance.now() - perf_begin);
         await runModule(ns, "network");
-        perf.push(performance.now() - perf_begin);
         await runModule(ns, "working");
-        perf.push(performance.now() - perf_begin);
         await runModule(ns, "sleeves");
-        perf.push(performance.now() - perf_begin);
         await runModule(ns, "purchase_1");
         await runModule(ns, "purchase_2");
-        perf.push(performance.now() - perf_begin);
         await runModule(ns, "scripts");
-        perf.push(performance.now() - perf_begin);
         await runModule(ns, "trading");
-        perf.push(performance.now() - perf_begin);
-        await runModule(ns, "gang");
-        let perf_end = performance.now();
-        perf.push(perf_end - perf_begin);
+        //await runModule(ns, "gang");
 
-        if (perf_end - perf_begin > 800) {
-            ns.tprintf("ERROR: SFH main loop took %.1fms", perf_end - perf_begin);
-            ns.tprintf("ERROR: All timings: %s", perf.join(" "));
+        const perf_end = performance.now();
+        if (perf_end - perf_begin > 1500) {
+            sfh.print("{cr,!SFH main loop took} {cr,7,1}{cr,!ms}", perf_end - perf_begin);
+
+            const timings = Object.entries(perf).sort((a, b) => a[1][1] - b[1][1]);
+            for (const timing of timings) {
+                sfh.print("    {cr,10}{cr,!:} {cr,7,1}{cr,!ms} {cr,7,1}{cr,!ms}",
+                    timing[0], timing[1][0], timing[1][1]);
+            }
         }
+        perf_begin = 0;
 
         try {
             if (sfh.can.install && sfh.install) { await runModule(ns, "install"); }
@@ -150,66 +157,110 @@ export async function main(ns: NS) {
 
         case "bn":
         case "bitnode": {
-            const bn    = sfh.player.bitnode;
-            const print = function(name: string, value: number, flip = false, base = 1) {
-                const inc = (flip ? "r" : "c");
-                const neu = "g";
-                const dec = (flip ? "c" : "r");
+            const bn = sfh.bitnode;
 
-                if (base === 1) {
-                    sfh.print("{25}: {c*,4,2,f}", name, (value > 1 ? inc : (value < 1 ? dec : neu)), value);
-                } else {
-                    sfh.print("{25}: {c*,d}", name, (value > base ? inc : (value < base ? dec : neu)), value);
-                }
+            let sf_str = "";
+            for (let n = 1; n <= 13; ++n) {
+                sf_str += ("SF-" + String(n)).padStart(5, " ");
+                if (n !== 13) { sf_str += " "; }
             }
+            sfh.print(sf_str);
 
-            sfh.print("{26,cy,!Bitnode:} {cy}", bn.number);
-            print("Hacking", bn.skill);
-            print("Hacking exp", bn.skill_exp);
-            print("Strength", bn.str);
-            print("Defense", bn.def);
-            print("Dexterity", bn.dex);
-            print("Agility", bn.agi);
-            print("Charisma", bn.cha);
-            print("Hack power", bn.hack_money);
-            print("Hack profit", bn.hack_profit);
-            print("Manual hack", bn.hack_manual);
-            print("Growth power", bn.grow_rate);
-            print("Weaken power", bn.weak_rate);
-            print("Server max money", bn.node_max_money);
-            print("Server initial money", bn.node_init_money);
-            print("Server initial level", bn.node_init_level, true);
-            print("Augmentation cost", bn.aug_cost, true);
-            print("Augmentation rep", bn.aug_rep, true);
-            print("Faction rep", bn.faction_rep);
-            print("Faction passive rep", bn.faction_passive);
-            print("Faction exp", bn.faction_exp);
-            print("Donation favour", bn.faction_favour * 150, true, 150);
-            print("Company salary", bn.company_money);
-            print("Company exp", bn.company_exp);
-            print("Crime money", bn.crime_money);
-            print("Crime exp", bn.crime_exp);
-            print("Infiltration money", bn.infil_money);
-            print("Infiltration rep", bn.infil_rep);
-            print("Class exp", bn.class_exp);
-            print("Hacknet production", bn.hacknet_prod);
-            print("Coding contract money", bn.cct_money);
-            print("Home RAM cost", bn.home_cost, true);
-            print("Cluster RAM cost", bn.cluster_cost, true);
-            print("Cluster max count", bn.cluster_count);
-            print("Cluster max RAM", bn.cluster_max_ram);
-            print("Cluster softcap", bn.cluster_softcap, true);
-            print("4S data base cost", bn.stock_data_base);
-            print("4S data API cost", bn.stock_data);
-            print("Corporation valuation", bn.corp_valuation);
-            print("Corporation dividends", bn.corp_dividends);
-            print("Gang softcap", bn.gang_softcap);
-            print("Bladeburner rank", bn.bb_rank);
-            print("Bladeburner cost", bn.bb_cost);
-            print("Stanek's gift power", bn.stanek_power);
-            print("Stanek's gift size", bn.stanek_size, false, 0);
-            print("Daedalus augs", bn.daedalus_augs, true, 30);
-            print("World Daemon", bn.world_daemon * 3000, true, 3000);
+            let lvl_fmt = "";
+            let lvl_args: any[] = [];
+            for (let n = 1; n <= 13; ++n) {
+                const lvl = bn.sf[n];
+
+                lvl_fmt += "{c*,5,d} ";
+                if (n === 12) {
+                    lvl_args.push(lvl <= 0 ? "r" : "y");
+                } else {
+                    lvl_args.push(lvl <= 0 ? "r" : (lvl >= 3 ? "g" : "y"));
+                }
+
+                lvl_args.push(lvl);
+            }
+            sfh.print(lvl_fmt, ...lvl_args);
+
+            sfh.print(" ");
+            sfh.print("{cy,!Current BitNode:} {cy}", bn.number);
+            const mults: [string, number, boolean?, number?][] = [
+                ["Hacking skill", bn.mult.hac],
+                ["Hacking experience", bn.mult.hac_exp],
+                ["Strength", bn.mult.str],
+                ["Defense", bn.mult.def],
+                ["Dexterity", bn.mult.dex],
+                ["Agility", bn.mult.agi],
+                ["Charisma", bn.mult.cha],
+                ["Hack power", bn.mult.hack_money],
+                ["Hack profit", bn.mult.hack_profit],
+                ["Manual hack", bn.mult.hack_manual],
+                ["Growth power", bn.mult.grow_rate],
+                ["Weaken power", bn.mult.weak_rate],
+                ["Server maximum money", bn.mult.max_money],
+                ["Server initial money", bn.mult.init_money],
+                ["Server initial level", bn.mult.init_level, true],
+                ["Augmentation cost", bn.mult.aug_cost, true],
+                ["Augmentation rep", bn.mult.aug_rep, true],
+                ["Faction reputation", bn.mult.faction_rep],
+                ["Passive reputation", bn.mult.faction_passive],
+                ["Faction experience", bn.mult.faction_exp],
+                ["Donation favour", bn.donation, true, 150],
+                ["Company salary", bn.mult.company_money],
+                ["Company experience", bn.mult.company_exp],
+                ["Crime money", bn.mult.crime_money],
+                ["Crime experience", bn.mult.crime_exp],
+                ["Infiltration money", bn.mult.infil_money],
+                ["Infiltration reputation", bn.mult.infil_rep],
+                ["Class experience", bn.mult.class_exp],
+                ["Hacknet production", bn.mult.hacknet_prod],
+                ["Coding contract money", bn.mult.contract_money],
+                ["Home RAM cost", bn.mult.home_cost, true],
+                ["Cluster RAM cost", bn.mult.cluster_cost, true],
+                ["Cluster RAM cost growth", bn.mult.cluster_softcap, true],
+                ["Cluster max count", bn.mult.cluster_count],
+                ["Cluster max RAM", bn.mult.cluster_max_ram],
+                ["4S data base cost", bn.stock_4S_base, true],
+                ["4S data API cost", bn.stock_4S_api, true],
+                ["Corporation valuation", bn.mult.corp_valuation],
+                ["Corporation dividends", bn.mult.corp_dividends],
+                ["Gang money/respect", bn.mult.gang_softcap],
+                ["Bladeburner rank", bn.mult.bb_rank],
+                ["Bladeburner cost", bn.mult.bb_cost, true],
+                ["Stanek's gift power", bn.mult.stanek_power],
+                ["Stanek's gift size", bn.stanek_size, false, 0],
+                ["Daedalus augmentations", bn.daedalus_augs, true, 30],
+                ["World Daemon requirement", bn.world_daemon * 3000, true, 3000]
+            ];
+
+            for (let i = 0; i < mults.length + 3; i += 4) {
+                let fmt = "";
+                let args: any[] = [];
+
+                for (let n = i; n <= i + 3; ++n) {
+                    const mult = mults[n];
+                    if (!mult) { break; }
+
+                    const inc = ((mult[2] ?? false) ? "r" : "c");
+                    const neu = "g";
+                    const dec = ((mult[2] ?? false) ? "c" : "r");
+
+                    const x = mult[1];
+                    if (mult[3] == null || mult[3] === 1) {
+                        fmt += "{25}: {c*,5,2,f} ";
+                        args.push(mult[0]);
+                        args.push(x > 1 ? inc : (x < 1 ? dec : neu));
+                        args.push(x);
+                    } else {
+                        fmt += "{25}: {c*,5,d} ";
+                        args.push(mult[0]);
+                        args.push(x > mult[3] ? inc : (x < mult[3] ? dec : neu));
+                        args.push(x);
+                    }
+                }
+
+                sfh.print(fmt, ...args);
+            }
         } break;
 
         case "ps":
@@ -227,7 +278,8 @@ export async function main(ns: NS) {
 
             let seen_procs = new Set();
 
-            let sets: [string, Set<S.Proc>][] = [["share", sfh.procs.sharing], ["exp", sfh.procs.exp]];
+            let sets: [string, Set<Proc>][] =
+                [["exp", sfh.procs.exp], ["share", sfh.procs.sharing], ["stanek", sfh.procs.stanek]];
             for (const [type, set] of sets) {
                 if (set.size === 0) { continue; }
 
@@ -319,7 +371,7 @@ export async function main(ns: NS) {
                 "TOTAL", sfh.state.money_rate, sfh.state.money_rate * 3600);
             sfh.print(" ");
 
-            for (const type of (Object.keys(sfh.money.spent) as S.MoneyType[])) {
+            for (const type of (Object.keys(sfh.money.spent) as (keyof typeof sfh.money.spent)[])) {
                 sfh.print(`{12} {5,p} {0,m} {5,p}`, type,
                     sfh.money.spent[type] / sfh.money.total, sfh.money.spent[type],
                     sfh.money.spent[type] / (sfh.money.frac[type] * sfh.money.total));
@@ -342,11 +394,13 @@ export async function main(ns: NS) {
                 sfh.goal.work.splice(0, sfh.goal.work.length);
                 sfh.goal.orgs.clear();
 
-                sfh.goal.corp   = false;
-                sfh.goal.skill  = 0;
-                sfh.goal.cha    = 0;
-                sfh.goal.combat = 0;
-                sfh.goal.karma  = 0;
+                sfh.goal.corp = false;
+                sfh.goal.hac  = 0;
+                sfh.goal.str  = 0;
+                sfh.goal.def  = 0;
+                sfh.goal.dex  = 0;
+                sfh.goal.agi  = 0;
+                sfh.goal.cha  = 0;
             } else if (ns.args[1] === "faction") {
                 const faction = sfh.state.factions[ns.args[2] as string];
 
@@ -360,14 +414,15 @@ export async function main(ns: NS) {
                 goal.orgs.add(faction);
             } else if (ns.args[1] === "corp") {
                 goal.corp = !sfh.goal.corp;
-            } else if (ns.args[1] === "skill") {
-                goal.skill = Number(ns.args[2]);
+            } else if (ns.args[1] === "hac") {
+                goal.hac = Number(ns.args[2]);
             } else if (ns.args[1] === "cha") {
                 goal.cha = Number(ns.args[2]);
             } else if (ns.args[1] === "combat") {
-                goal.combat = Number(ns.args[2]);
-            } else if (ns.args[1] === "karma") {
-                goal.karma = Number(ns.args[2]);
+                goal.str = Number(ns.args[2]);
+                goal.def = Number(ns.args[2]);
+                goal.dex = Number(ns.args[2]);
+                goal.agi = Number(ns.args[2]);
             }
 
             sfh.goalSort();
@@ -394,20 +449,19 @@ export async function main(ns: NS) {
                 if (header) { sfh.print("Augs:"); header = false; }
 
                 const aug  = goal.augs[i].name;
-                const cost = data.augs[aug].cost * sfh.player.bitnode.aug_cost;
+                const cost = data.augs[aug].cost * sfh.player.mult.aug_cost;
                 sfh.print("    {0,3,3,e} {0,m} {0,m} {}",
-                    data.augs[aug].rep * sfh.player.bitnode.aug_rep,
+                    data.augs[aug].rep * sfh.player.mult.aug_rep,
                     cost, cost * 1.9 ** augs_installed++, aug);
             }
 
             sfh.print("     Corp {}", goal.corp ? "yes" : "no");
-            sfh.print("    Skill {8,d} / {8,d}", sfh.player.skill, goal.skill);
-            sfh.print(" Strength {8,d} / {8,d}", sfh.player.str,   goal.combat);
-            sfh.print("  Defense {8,d} / {8,d}", sfh.player.str,   goal.combat);
-            sfh.print("Dexterity {8,d} / {8,d}", sfh.player.str,   goal.combat);
-            sfh.print("  Agility {8,d} / {8,d}", sfh.player.str,   goal.combat);
-            sfh.print(" Charisma {8,d} / {8,d}", sfh.player.cha,   goal.cha);
-            sfh.print("    Karma {8,d} / {8,d}", sfh.player.karma, goal.karma);
+            sfh.print("  Hacking {8,d} / {8,d}", sfh.player.hac, goal.hac);
+            sfh.print(" Strength {8,d} / {8,d}", sfh.player.str, goal.str);
+            sfh.print("  Defense {8,d} / {8,d}", sfh.player.def, goal.def);
+            sfh.print("Dexterity {8,d} / {8,d}", sfh.player.dex, goal.dex);
+            sfh.print("  Agility {8,d} / {8,d}", sfh.player.agi, goal.agi);
+            sfh.print(" Charisma {8,d} / {8,d}", sfh.player.cha, goal.cha);
         } break;
 
         case "servers":

@@ -1,12 +1,9 @@
-import { NS } from "netscript";
-import * as S from "sfh";
-
 export async function main(ns: NS) {
+    if (sfh.can.install && sfh.time.reset < 120 * 1000) { return; }
     const money = (() => ns.getServerMoneyAvailable("home"));
 
-    const prod_mult = sfh.player.hacknet_prod_mult * sfh.player.bitnode.hacknet_prod;
     const hashRate = (l: number, r: number, c: number) =>
-        ns.formulas.hacknetServers.hashGainRate(l, 0, r, c, prod_mult);
+        ns.formulas.hacknetServers.hashGainRate(l, 0, r, c, sfh.player.mult.hacknet_prod);
 
     let hacknet_prod = 0;
     for (let i = 0; i < ns.hacknet.numNodes(); ++i) {
@@ -55,14 +52,18 @@ export async function main(ns: NS) {
             }, 0, "Sell for Money"]);
         }
 
-        if (sfh.state.has_corp) {
-            hacknet_upgrades.push([() => 1e9 / Math.max(sfh.corp.profit, 1e6), 0, "Sell for Corporation Funds"]);
-            if (sfh.corp.res_rate > 0 && sfh.corp.research < 200e3) {
+        if (sfh.state.has_corp && sfh.corp.dividends < 1e30) {
+            if (sfh.corp.funds < 0) {
+                hacknet_upgrades.push([() => (sfh.corp.funds < 0 ? 1e9 / Math.max(sfh.corp.profit, 1) : 0),
+                    0, "Sell for Corporation Funds"]);
+            }
+
+            if (sfh.corp.res_rate > 0) {
                 hacknet_upgrades.push([() => 1e3 / sfh.corp.res_rate, 0, "Exchange for Corporation Research"]);
             }
         }
 
-        if ((sfh.goal.skill > 0 || sfh.goal.cha > 0) && sfh.state.work?.type === "university") {
+        if ((sfh.goal.hac > 0 || sfh.goal.cha > 0) && sfh.state.work?.type === "university") {
             let goal = 0;
             let stat = 0;
             let rate = 0;
@@ -74,12 +75,12 @@ export async function main(ns: NS) {
                 goal = sfh.goal.cha;
                 stat = sfh.player.cha;
                 rate = sfh.state.work.cha_rate;
-                mult = sfh.player.cha_exp_mult;
+                mult = sfh.player.mult.cha_exp;
             } else {
-                goal = sfh.goal.skill;
-                stat = sfh.player.skill;
+                goal = sfh.goal.hac;
+                stat = sfh.player.hac;
                 rate = sfh.state.work.skill_rate;
-                mult = sfh.player.skill_exp_mult * sfh.player.bitnode.skill_exp;
+                mult = sfh.player.mult.hac_exp;
             }
 
             if (goal > stat && rate > 0) {
@@ -91,32 +92,39 @@ export async function main(ns: NS) {
             }
         }
 
-        if (sfh.goal.combat > 0 && sfh.state.work?.type === "gym") {
+        if ((sfh.goal.str > 0 || sfh.goal.def > 0 || sfh.goal.dex > 0 || sfh.goal.agi > 0)
+            && sfh.state.work?.type === "gym")
+        {
             let stat = 0;
+            let goal = 0;
             let rate = 0;
             let mult = 1;
 
             if (sfh.state.work.desc === "training your strength at a gym") {
                 stat = sfh.player.str;
+                goal = sfh.goal.str;
                 rate = sfh.state.work.str_rate;
-                mult = sfh.player.str_exp_mult;
+                mult = sfh.player.mult.str_exp;
             } else if (sfh.state.work.desc === "training your defense at a gym") {
                 stat = sfh.player.def;
+                goal = sfh.goal.def;
                 rate = sfh.state.work.def_rate;
-                mult = sfh.player.def_exp_mult;
+                mult = sfh.player.mult.def_exp;
             } else if (sfh.state.work.desc === "training your dexterity at a gym") {
                 stat = sfh.player.dex;
+                goal = sfh.goal.dex;
                 rate = sfh.state.work.dex_rate;
-                mult = sfh.player.dex_exp_mult;
+                mult = sfh.player.mult.dex_exp;
             } else if (sfh.state.work.desc === "training your agility at a gym") {
                 stat = sfh.player.agi;
+                goal = sfh.goal.agi;
                 rate = sfh.state.work.agi_rate;
-                mult = sfh.player.agi_exp_mult;
+                mult = sfh.player.mult.agi_exp;
             }
 
-            if (sfh.goal.combat > stat && rate > 0) {
+            if (goal > stat && rate > 0) {
                 const stat_exp = mult * (32 * Math.log(stat + 534.5) - 200)
-                const goal_exp = mult * (32 * Math.log(sfh.goal.combat + 534.5) - 200)
+                const goal_exp = mult * (32 * Math.log(goal + 534.5) - 200)
                 const old_time = (goal_exp - stat_exp) / rate;
                 const new_time = (goal_exp - stat_exp) / (1.2 * rate);
                 hacknet_upgrades.push([() => old_time - new_time, 0, "Improve Gym Training"]);
@@ -135,30 +143,44 @@ export async function main(ns: NS) {
                     || ns.hacknet.numHashes() < ns.hacknet.hashCost(hacknet_upgrades[0][2])
                     || !ns.hacknet.spendHashes(hacknet_upgrades[0][2], hacknet_upgrades[0][3])
                 ) { break; }
+
+                if (hacknet_upgrades[0][2] === "Sell for Money") {
+                    sfh.money.spent.hacknet = Math.max(sfh.money.spent.hacknet - 1e6, 0);
+                }
             }
         }
 
         const min_money = Math.max((1e6 * hacknet_prod / 4) * 2, 1e6);
         while (money() < min_money) {
             if (!ns.hacknet.spendHashes("Sell for Money")) { break; }
+            sfh.money.spent.hacknet = Math.max(sfh.money.spent.hacknet - 1e6, 0);
         }
     }
 
-    if (sfh.can.hnet || sfh.can.automate) {
-        while (ns.hacknet.numHashes() + hacknet_prod * 2 > ns.hacknet.hashCapacity()) {
-            if (!ns.hacknet.spendHashes("Sell for Money")) { break; }
+    if (ns.hacknet.numHashes() + hacknet_prod * 2 > ns.hacknet.hashCapacity()) {
+        if (hacknet_prod < 1000) {
+            while (ns.hacknet.numHashes() + hacknet_prod * 2 > ns.hacknet.hashCapacity()) {
+                if (!ns.hacknet.spendHashes("Sell for Money")) { break; }
+                sfh.money.spent.hacknet = Math.max(sfh.money.spent.hacknet - 1e6, 0);
+            }
+        } else {
+            const cap  = ns.hacknet.hashCapacity();
+            const prod = hacknet_prod / 5;
+            let hashes = ns.hacknet.numHashes();
+            let cycles = 10;
+
+            while (cycles > 0 && hashes + prod < cap) {
+                hashes += prod;
+                --cycles;
+            }
+
+            const money_gained = cycles * Math.floor(prod / 4);
+            sfh.money.spent.hacknet = Math.max(sfh.money.spent.hacknet - money_gained, 0);
         }
     }
 
-    const stock_main_cost = 200e6;
-    const stock_api_cost  = 5e9;
-    const stock_data_cost = 1e9  * sfh.player.bitnode.stock_data_base;
-    const stock_dapi_cost = 25e9 * sfh.player.bitnode.stock_data;
-
-    sfh.purchase("stocks", money, stock_main_cost, () => ns.stock.purchaseWseAccount(),         0.1);
-    sfh.purchase("stocks", money, stock_api_cost,  () => ns.stock.purchaseTixApi(),             0.1);
-    sfh.purchase("stocks", money, stock_data_cost, () => ns.stock.purchase4SMarketData(),       0.1);
-    sfh.purchase("stocks", money, stock_dapi_cost, () => ns.stock.purchase4SMarketDataTixApi(), 0.1);
+    sfh.purchase("upgrade", money, sfh.bitnode.stock_4S_base, () => ns.stock.purchase4SMarketData(),       0.1);
+    sfh.purchase("upgrade", money, sfh.bitnode.stock_4S_api,  () => ns.stock.purchase4SMarketDataTixApi(), 0.1);
 
     const cluster_name = (i: number): string => `sfh-${i.toFixed(0).padStart(2, "0")}`;
     const cluster_max = ns.getPurchasedServerLimit();
@@ -221,7 +243,7 @@ export async function main(ns: NS) {
         let cpd = 0;
 
         for (let i = 0; i < ns.hacknet.numNodes(); ++i) {
-            const cap  = ns.hacknet.getNodeStats(i).hashCapacity;
+            const cap  = ns.hacknet.getNodeStats(i).hashCapacity ?? 0;
             const cost = ns.hacknet.getCacheUpgradeCost(i, 1);
 
             if (Number.isFinite(cost) && sfh.purchase("hacknet", money, cost, null) && cap / cost > cpd) {

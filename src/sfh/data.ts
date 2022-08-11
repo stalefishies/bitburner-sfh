@@ -1,5 +1,3 @@
-import { NS } from "netscript";
-
 const dump = {
     "augs": {
         "Unstable Circadian Modulator": {
@@ -20,10 +18,10 @@ const dump = {
             "name": "HemoRecirculator",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.08,
-                "defense_mult": 1.08,
-                "dexterity_mult": 1.08,
-                "agility_mult": 1.08
+                "strength": 1.08,
+                "defense": 1.08,
+                "dexterity": 1.08,
+                "agility": 1.08
             },
             "startingCost": 45000000,
             "info": "A heart implant that greatly increases the body's ability to effectively use and pump blood.",
@@ -36,7 +34,7 @@ const dump = {
             "name": "Augmented Targeting I",
             "prereqs": [],
             "mults": {
-                "dexterity_mult": 1.1
+                "dexterity": 1.1
             },
             "startingCost": 15000000,
             "info": "A cranial implant that is embedded within the inner ear structures and optic nerves. It regulates and enhances balance and hand-eye coordination.",
@@ -51,7 +49,7 @@ const dump = {
                 "Augmented Targeting I"
             ],
             "mults": {
-                "dexterity_mult": 1.2
+                "dexterity": 1.2
             },
             "startingCost": 42500000,
             "info": "This upgraded version of the 'Augmented Targeting' implant is capable of augmenting reality by digitally displaying weaknesses and vital signs of threats.",
@@ -66,7 +64,7 @@ const dump = {
                 "Augmented Targeting II"
             ],
             "mults": {
-                "dexterity_mult": 1.3
+                "dexterity": 1.3
             },
             "startingCost": 115000000,
             "info": "The latest version of the 'Augmented Targeting' implant adds the ability to lock-on and track threats.",
@@ -79,8 +77,8 @@ const dump = {
             "name": "Synthetic Heart",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.5,
-                "agility_mult": 1.5
+                "strength": 1.5,
+                "agility": 1.5
             },
             "startingCost": 2875000000,
             "info": "This advanced artificial heart, created from plasteel and graphene, is capable of pumping blood more efficiently than an organic heart.",
@@ -93,8 +91,8 @@ const dump = {
             "name": "Synfibril Muscle",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.3,
-                "defense_mult": 1.3
+                "strength": 1.3,
+                "defense": 1.3
             },
             "startingCost": 1125000000,
             "info": "The myofibrils in human muscles are injected with special chemicals that react with the proteins inside the myofibrils, altering their underlying structure. The end result is muscles that are stronger and more elastic. Scientists have named these artificially enhanced units 'synfibrils'.",
@@ -107,8 +105,8 @@ const dump = {
             "name": "Combat Rib I",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.1,
-                "defense_mult": 1.1
+                "strength": 1.1,
+                "defense": 1.1
             },
             "startingCost": 23750000,
             "info": "The rib cage is augmented to continuously release boosters into the bloodstream which increase the oxygen-carrying capacity of blood.",
@@ -123,8 +121,8 @@ const dump = {
                 "Combat Rib I"
             ],
             "mults": {
-                "strength_mult": 1.14,
-                "defense_mult": 1.14
+                "strength": 1.14,
+                "defense": 1.14
             },
             "startingCost": 65000000,
             "info": "An upgraded version of the 'Combat Rib' augmentation that adds potent stimulants which improve focus and endurance while decreasing reaction time and fatigue.",
@@ -139,8 +137,8 @@ const dump = {
                 "Combat Rib II"
             ],
             "mults": {
-                "strength_mult": 1.18,
-                "defense_mult": 1.18
+                "strength": 1.18,
+                "defense": 1.18
             },
             "startingCost": 120000000,
             "info": "The latest version of the 'Combat Rib' augmentation releases advanced anabolic steroids that improve muscle mass and physical performance while being safe and free of side effects.",
@@ -153,8 +151,8 @@ const dump = {
             "name": "Nanofiber Weave",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.2,
-                "defense_mult": 1.2
+                "strength": 1.2,
+                "defense": 1.2
             },
             "startingCost": 125000000,
             "info": "Synthetic nanofibers are woven into the skin's extracellular matrix using electrospinning, which improves its regenerative and extracellular homeostasis abilities.",
@@ -167,7 +165,7 @@ const dump = {
             "name": "NEMEAN Subdermal Weave",
             "prereqs": [],
             "mults": {
-                "defense_mult": 2.2
+                "defense": 2.2
             },
             "startingCost": 3250000000,
             "info": "The NEMEAN Subdermal Weave is a thin, light-weight, graphene plating that houses a dilatant fluid. The material is implanted underneath the skin, and is the most advanced form of defensive enhancement that has ever been created. The dilatant fluid, despite being thin and light, is extremely effective at stopping piercing blows and reducing blunt trauma. The properties of graphene allow the plating to mitigate damage from any fire or electrical traumas.",
@@ -180,8 +178,8 @@ const dump = {
             "name": "Wired Reflexes",
             "prereqs": [],
             "mults": {
-                "dexterity_mult": 1.05,
-                "agility_mult": 1.05
+                "dexterity": 1.05,
+                "agility": 1.05
             },
             "startingCost": 2500000,
             "info": "Synthetic nerve-enhancements are injected into all major parts of the somatic nervous system, supercharging the spread of neural signals and increasing reflex speed.",
@@ -194,8 +192,8 @@ const dump = {
             "name": "Graphene Bone Lacings",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.7,
-                "defense_mult": 1.7
+                "strength": 1.7,
+                "defense": 1.7
             },
             "startingCost": 4250000000,
             "info": "Graphene is grafted and fused into the skeletal structure, enhancing bone density and tensile strength.",
@@ -208,10 +206,10 @@ const dump = {
             "name": "Bionic Spine",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.15,
-                "defense_mult": 1.15,
-                "dexterity_mult": 1.15,
-                "agility_mult": 1.15
+                "strength": 1.15,
+                "defense": 1.15,
+                "dexterity": 1.15,
+                "agility": 1.15
             },
             "startingCost": 125000000,
             "info": "The spine is reconstructed using plasteel and carbon fibers. It is now capable of stimulating and regulating neural signals passing through the spinal cord, improving senses and reaction speed. The 'Bionic Spine' also interfaces with all other 'Bionic' implants.",
@@ -226,10 +224,10 @@ const dump = {
                 "Bionic Spine"
             ],
             "mults": {
-                "strength_mult": 1.6,
-                "defense_mult": 1.6,
-                "dexterity_mult": 1.6,
-                "agility_mult": 1.6
+                "strength": 1.6,
+                "defense": 1.6,
+                "dexterity": 1.6,
+                "agility": 1.6
             },
             "startingCost": 6000000000,
             "info": "An upgrade to the 'Bionic Spine' augmentation. The spine is fused with graphene which enhances durability and supercharges all body functions.",
@@ -242,7 +240,7 @@ const dump = {
             "name": "Bionic Legs",
             "prereqs": [],
             "mults": {
-                "agility_mult": 1.6
+                "agility": 1.6
             },
             "startingCost": 375000000,
             "info": "Cybernetic legs, created from plasteel and carbon fibers, enhance running speed.",
@@ -257,7 +255,7 @@ const dump = {
                 "Bionic Legs"
             ],
             "mults": {
-                "agility_mult": 2.5
+                "agility": 2.5
             },
             "startingCost": 4500000000,
             "info": "An upgrade to the 'Bionic Legs' augmentation. The legs are fused with graphene, greatly enhancing jumping ability.",
@@ -270,7 +268,7 @@ const dump = {
             "name": "Speech Processor Implant",
             "prereqs": [],
             "mults": {
-                "charisma_mult": 1.2
+                "charisma": 1.2
             },
             "startingCost": 50000000,
             "info": "A cochlear implant with an embedded computer that analyzes incoming speech. The embedded computer processes characteristics of incoming speech, such as tone and inflection, to pick up on subtle cues and aid in social interactions.",
@@ -283,8 +281,8 @@ const dump = {
             "name": "TITN-41 Gene-Modification Injection",
             "prereqs": [],
             "mults": {
-                "charisma_mult": 1.15,
-                "charisma_exp_mult": 1.15
+                "charisma": 1.15,
+                "charisma_exp": 1.15
             },
             "startingCost": 190000000,
             "info": "TITN is a series of viruses that targets and alters the sequences of human DNA in genes that control personality. The TITN-41 strain alters these genes so that the subject becomes more outgoing and socialable.",
@@ -297,8 +295,8 @@ const dump = {
             "name": "Enhanced Social Interaction Implant",
             "prereqs": [],
             "mults": {
-                "charisma_mult": 1.6,
-                "charisma_exp_mult": 1.6
+                "charisma": 1.6,
+                "charisma_exp": 1.6
             },
             "startingCost": 1375000000,
             "info": "A cranial implant that greatly assists in the user's ability to analyze social situations and interactions. The system uses a wide variety of factors such as facial expressions, body language, and the voice tone, and inflection to determine the best course of action during socialsituations. The implant also uses deep learning software to continuously learn new behaviorpatterns and how to best respond.",
@@ -311,7 +309,7 @@ const dump = {
             "name": "BitWire",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.05
+                "hacking": 1.05
             },
             "startingCost": 10000000,
             "info": "A small brain implant embedded in the cerebrum. This regulates and improves the brain's computing capabilities.",
@@ -324,9 +322,9 @@ const dump = {
             "name": "Artificial Bio-neural Network Implant",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.12,
-                "hacking_speed_mult": 1.03,
-                "hacking_money_mult": 1.15
+                "hacking": 1.12,
+                "hacking_speed": 1.03,
+                "hacking_money": 1.15
             },
             "startingCost": 3000000000,
             "info": "A network consisting of millions of nanoprocessors is embedded into the brain. The network is meant to mimic the way a biological brain solves a problem, with each nanoprocessor acting similar to the way a neuron would in a neural network. However, these nanoprocessors are programmed to perform computations much faster than organic neurons, allowing the user to solve much more complex problems at a much faster rate.",
@@ -339,9 +337,9 @@ const dump = {
             "name": "Artificial Synaptic Potentiation",
             "prereqs": [],
             "mults": {
-                "hacking_exp_mult": 1.05,
-                "hacking_chance_mult": 1.05,
-                "hacking_speed_mult": 1.02
+                "hacking_exp": 1.05,
+                "hacking_chance": 1.05,
+                "hacking_speed": 1.02
             },
             "startingCost": 80000000,
             "info": "The body is injected with a chemical that artificially induces synaptic potentiation, otherwise known as the strengthening of synapses. This results in enhanced cognitive abilities.",
@@ -354,9 +352,9 @@ const dump = {
             "name": "Enhanced Myelin Sheathing",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.08,
-                "hacking_exp_mult": 1.1,
-                "hacking_speed_mult": 1.03
+                "hacking": 1.08,
+                "hacking_exp": 1.1,
+                "hacking_speed": 1.03
             },
             "startingCost": 1375000000,
             "info": "Electrical signals are used to induce a new, artificial form of myelinogenesis in the human body. This process results in the proliferation of new, synthetic myelin sheaths in the nervous system. These myelin sheaths can propogate neuro-signals much faster than their organic counterparts, leading to greater processing speeds and better brain function.",
@@ -369,7 +367,7 @@ const dump = {
             "name": "Synaptic Enhancement Implant",
             "prereqs": [],
             "mults": {
-                "hacking_speed_mult": 1.03
+                "hacking_speed": 1.03
             },
             "startingCost": 7500000,
             "info": "A small cranial implant that continuously uses weak electrical signals to stimulate the brain and induce stronger synaptic activity. This improves the user's cognitive abilities.",
@@ -382,7 +380,7 @@ const dump = {
             "name": "Neural-Retention Enhancement",
             "prereqs": [],
             "mults": {
-                "hacking_exp_mult": 1.25
+                "hacking_exp": 1.25
             },
             "startingCost": 250000000,
             "info": "Chemical injections are used to permanently alter and strengthen the brain's neuronal circuits, strengthening the ability to retain information.",
@@ -395,7 +393,7 @@ const dump = {
             "name": "DataJack",
             "prereqs": [],
             "mults": {
-                "hacking_money_mult": 1.25
+                "hacking_money": 1.25
             },
             "startingCost": 450000000,
             "info": "A brain implant that provides an interface for direct, wireless communication between a computer's main memory and the mind. This implant allows the user to not only access a computer's memory, but also alter and delete it.",
@@ -408,7 +406,7 @@ const dump = {
             "name": "Embedded Netburner Module",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.08
+                "hacking": 1.08
             },
             "startingCost": 250000000,
             "info": "A thin device embedded inside the arm containing a wireless module capable of connecting to nearby networks. Once connected, the Netburner Module is capable of capturing and processing all of the traffic on that network. By itself, the Embedded Netburner Module does not do much, but a variety of very powerful upgrades can be installed that allow you to fully control the traffic on a network.",
@@ -423,11 +421,11 @@ const dump = {
                 "Embedded Netburner Module"
             ],
             "mults": {
-                "hacking_mult": 1.07,
-                "hacking_exp_mult": 1.07,
-                "hacking_chance_mult": 1.03,
-                "hacking_speed_mult": 1.03,
-                "hacking_money_mult": 1.1
+                "hacking": 1.07,
+                "hacking_exp": 1.07,
+                "hacking_chance": 1.03,
+                "hacking_speed": 1.03,
+                "hacking_money": 1.1
             },
             "startingCost": 2500000000,
             "info": "The Core library is an implant that upgrades the firmware of the Embedded Netburner Module. This upgrade allows the Embedded Netburner Module to generate its own data on a network.",
@@ -442,11 +440,11 @@ const dump = {
                 "Embedded Netburner Module Core Implant"
             ],
             "mults": {
-                "hacking_mult": 1.08,
-                "hacking_exp_mult": 1.15,
-                "hacking_chance_mult": 1.05,
-                "hacking_speed_mult": 1.05,
-                "hacking_money_mult": 1.3
+                "hacking": 1.08,
+                "hacking_exp": 1.15,
+                "hacking_chance": 1.05,
+                "hacking_speed": 1.05,
+                "hacking_money": 1.3
             },
             "startingCost": 4500000000,
             "info": "The Core V2 library is an implant that upgrades the firmware of the Embedded Netburner Module. This upgraded firmware allows the Embedded Netburner Module to control information on a network by re-routing traffic, spoofing IP addresses, and altering the data inside network packets.",
@@ -461,11 +459,11 @@ const dump = {
                 "Embedded Netburner Module Core V2 Upgrade"
             ],
             "mults": {
-                "hacking_mult": 1.1,
-                "hacking_exp_mult": 1.25,
-                "hacking_chance_mult": 1.1,
-                "hacking_speed_mult": 1.05,
-                "hacking_money_mult": 1.4
+                "hacking": 1.1,
+                "hacking_exp": 1.25,
+                "hacking_chance": 1.1,
+                "hacking_speed": 1.05,
+                "hacking_money": 1.4
             },
             "startingCost": 7500000000,
             "info": "The Core V3 library is an implant that upgrades the firmware of the Embedded Netburner Module. This upgraded firmware allows the Embedded Netburner Module to seamlessly inject code into any device on a network.",
@@ -480,7 +478,7 @@ const dump = {
                 "Embedded Netburner Module"
             ],
             "mults": {
-                "hacking_speed_mult": 1.1
+                "hacking_speed": 1.1
             },
             "startingCost": 6000000000,
             "info": "Installs the Analyze Engine for the Embedded Netburner Module, which is a CPU cluster that vastly outperforms the Netburner Module's native single-core processor.",
@@ -495,8 +493,8 @@ const dump = {
                 "Embedded Netburner Module"
             ],
             "mults": {
-                "hacking_chance_mult": 1.2,
-                "hacking_money_mult": 1.4
+                "hacking_chance": 1.2,
+                "hacking_money": 1.4
             },
             "startingCost": 7000000000,
             "info": "This implant installs a Direct Memory Access (DMA) controller into the Embedded Netburner Module. This allows the Module to send and receive data directly to and from the main memory of devices on a network.",
@@ -509,9 +507,9 @@ const dump = {
             "name": "Neuralstimulator",
             "prereqs": [],
             "mults": {
-                "hacking_exp_mult": 1.12,
-                "hacking_chance_mult": 1.1,
-                "hacking_speed_mult": 1.02
+                "hacking_exp": 1.12,
+                "hacking_chance": 1.1,
+                "hacking_speed": 1.02
             },
             "startingCost": 3000000000,
             "info": "A cranial implant that intelligently stimulates certain areas of the brain in order to improve cognitive functions.",
@@ -524,9 +522,9 @@ const dump = {
             "name": "Neural Accelerator",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.1,
-                "hacking_exp_mult": 1.15,
-                "hacking_money_mult": 1.2
+                "hacking": 1.1,
+                "hacking_exp": 1.15,
+                "hacking_money": 1.2
             },
             "startingCost": 1750000000,
             "info": "A microprocessor that accelerates the processing speed of biological neural networks. This is a cranial implant that is embedded inside the brain.",
@@ -539,8 +537,8 @@ const dump = {
             "name": "Cranial Signal Processors - Gen I",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.05,
-                "hacking_speed_mult": 1.01
+                "hacking": 1.05,
+                "hacking_speed": 1.01
             },
             "startingCost": 70000000,
             "info": "The first generation of Cranial Signal Processors. Cranial Signal Processors are a set of specialized microprocessors that are attached to neurons in the brain. These chips process neural signals to quickly and automatically perform specific computations so that the brain doesn't have to.",
@@ -555,9 +553,9 @@ const dump = {
                 "Cranial Signal Processors - Gen I"
             ],
             "mults": {
-                "hacking_mult": 1.07,
-                "hacking_chance_mult": 1.05,
-                "hacking_speed_mult": 1.02
+                "hacking": 1.07,
+                "hacking_chance": 1.05,
+                "hacking_speed": 1.02
             },
             "startingCost": 125000000,
             "info": "The second generation of Cranial Signal Processors. Cranial Signal Processors are a set of specialized microprocessors that are attached to neurons in the brain. These chips process neural signals to quickly and automatically perform specific computations so that the brain doesn't have to.",
@@ -572,9 +570,9 @@ const dump = {
                 "Cranial Signal Processors - Gen II"
             ],
             "mults": {
-                "hacking_mult": 1.09,
-                "hacking_speed_mult": 1.02,
-                "hacking_money_mult": 1.15
+                "hacking": 1.09,
+                "hacking_speed": 1.02,
+                "hacking_money": 1.15
             },
             "startingCost": 550000000,
             "info": "The third generation of Cranial Signal Processors. Cranial Signal Processors are a set of specialized microprocessors that are attached to neurons in the brain. These chips process neural signals to quickly and automatically perform specific computations so that the brain doesn't have to.",
@@ -589,9 +587,9 @@ const dump = {
                 "Cranial Signal Processors - Gen III"
             ],
             "mults": {
-                "hacking_speed_mult": 1.02,
-                "hacking_money_mult": 1.2,
-                "hacking_grow_mult": 1.25
+                "hacking_speed": 1.02,
+                "hacking_money": 1.2,
+                "hacking_grow": 1.25
             },
             "startingCost": 1100000000,
             "info": "The fourth generation of Cranial Signal Processors. Cranial Signal Processors are a set of specialized microprocessors that are attached to neurons in the brain. These chips process neural signals to quickly and automatically perform specific computations so that the brain doesn't have to.",
@@ -606,9 +604,9 @@ const dump = {
                 "Cranial Signal Processors - Gen IV"
             ],
             "mults": {
-                "hacking_mult": 1.3,
-                "hacking_money_mult": 1.25,
-                "hacking_grow_mult": 1.75
+                "hacking": 1.3,
+                "hacking_money": 1.25,
+                "hacking_grow": 1.75
             },
             "startingCost": 2250000000,
             "info": "The fifth generation of Cranial Signal Processors. Cranial Signal Processors are a set of specialized microprocessors that are attached to neurons in the brain. These chips process neural signals to quickly and automatically perform specific computations so that the brain doesn't have to.",
@@ -621,9 +619,9 @@ const dump = {
             "name": "Neuronal Densification",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.15,
-                "hacking_exp_mult": 1.1,
-                "hacking_speed_mult": 1.03
+                "hacking": 1.15,
+                "hacking_exp": 1.1,
+                "hacking_speed": 1.03
             },
             "startingCost": 1375000000,
             "info": "The brain is surgically re-engineered to have increased neuronal density by decreasing the neuron gap junction. Then, the body is genetically modified to enhance the production and capabilities of its neural stem cells.",
@@ -636,7 +634,7 @@ const dump = {
             "name": "Nuoptimal Nootropic Injector Implant",
             "prereqs": [],
             "mults": {
-                "company_rep_mult": 1.2
+                "company_rep": 1.2
             },
             "startingCost": 20000000,
             "info": "This torso implant automatically injects nootropic supplements into the bloodstream to improve memory, increase focus, and provide other cognitive enhancements.",
@@ -649,8 +647,8 @@ const dump = {
             "name": "Speech Enhancement",
             "prereqs": [],
             "mults": {
-                "charisma_mult": 1.1,
-                "company_rep_mult": 1.1
+                "charisma": 1.1,
+                "company_rep": 1.1
             },
             "startingCost": 12500000,
             "info": "An advanced neural implant that improves your speaking abilities, making you more convincing and likable in conversations and overall improving your social interactions.",
@@ -663,14 +661,14 @@ const dump = {
             "name": "FocusWire",
             "prereqs": [],
             "mults": {
-                "hacking_exp_mult": 1.05,
-                "strength_exp_mult": 1.05,
-                "defense_exp_mult": 1.05,
-                "dexterity_exp_mult": 1.05,
-                "agility_exp_mult": 1.05,
-                "charisma_exp_mult": 1.05,
-                "company_rep_mult": 1.1,
-                "work_money_mult": 1.2
+                "hacking_exp": 1.05,
+                "strength_exp": 1.05,
+                "defense_exp": 1.05,
+                "dexterity_exp": 1.05,
+                "agility_exp": 1.05,
+                "charisma_exp": 1.05,
+                "company_rep": 1.1,
+                "work_money": 1.2
             },
             "startingCost": 900000000,
             "info": "A cranial implant that stops procrastination by blocking specific neural pathways in the brain.",
@@ -683,8 +681,8 @@ const dump = {
             "name": "PC Direct-Neural Interface",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.08,
-                "company_rep_mult": 1.3
+                "hacking": 1.08,
+                "company_rep": 1.3
             },
             "startingCost": 3750000000,
             "info": "Installs a Direct-Neural Interface jack into your arm that is compatible with most computers. Connecting to a computer through this jack allows you to interface with it using the brain's electrochemical signals.",
@@ -699,8 +697,8 @@ const dump = {
                 "PC Direct-Neural Interface"
             ],
             "mults": {
-                "hacking_mult": 1.1,
-                "company_rep_mult": 1.75
+                "hacking": 1.1,
+                "company_rep": 1.75
             },
             "startingCost": 4500000000,
             "info": "This is a submodule upgrade to the PC Direct-Neural Interface augmentation. It improves the performance of the interface and gives the user more control options to a connected computer.",
@@ -715,9 +713,9 @@ const dump = {
                 "PC Direct-Neural Interface"
             ],
             "mults": {
-                "hacking_mult": 1.1,
-                "hacking_speed_mult": 1.05,
-                "company_rep_mult": 2
+                "hacking": 1.1,
+                "hacking_speed": 1.05,
+                "company_rep": 2
             },
             "startingCost": 7500000000,
             "info": "This is an additional installation that upgrades the functionality of the PC Direct-Neural Interface augmentation. When connected to a computer, The Neural Network upgrade allows the user to use their own brain's processing power to aid the computer in computational tasks.",
@@ -730,8 +728,8 @@ const dump = {
             "name": "ADR-V1 Pheromone Gene",
             "prereqs": [],
             "mults": {
-                "company_rep_mult": 1.1,
-                "faction_rep_mult": 1.1
+                "company_rep": 1.1,
+                "faction_rep": 1.1
             },
             "startingCost": 17500000,
             "info": "The body is genetically re-engineered so that it produces the ADR-V1 pheromone, an artificial pheromone discovered by scientists. The ADR-V1 pheromone, when excreted, triggers feelings of admiration and approval in other people.",
@@ -744,8 +742,8 @@ const dump = {
             "name": "ADR-V2 Pheromone Gene",
             "prereqs": [],
             "mults": {
-                "company_rep_mult": 1.2,
-                "faction_rep_mult": 1.2
+                "company_rep": 1.2,
+                "faction_rep": 1.2
             },
             "startingCost": 550000000,
             "info": "The body is genetically re-engineered so that it produces the ADR-V2 pheromone, which is similar to but more potent than ADR-V1. This pheromone, when excreted, triggers feelings of admiration, approval, and respect in others.",
@@ -758,8 +756,8 @@ const dump = {
             "name": "The Shadow's Simulacrum",
             "prereqs": [],
             "mults": {
-                "company_rep_mult": 1.15,
-                "faction_rep_mult": 1.15
+                "company_rep": 1.15,
+                "faction_rep": 1.15
             },
             "startingCost": 400000000,
             "info": "A crude but functional matter phase-shifter module that is embedded in the brainstem and cerebellum. This augmentation was developed by criminal organizations and allows the user to project and control holographic simulacrums within a large radius. These simulacrums are commonly used for espionage and surveillance work.",
@@ -772,8 +770,8 @@ const dump = {
             "name": "Hacknet Node CPU Architecture Neural-Upload",
             "prereqs": [],
             "mults": {
-                "hacknet_node_money_mult": 1.15,
-                "hacknet_node_purchase_cost_mult": 0.85
+                "hacknet_node_money": 1.15,
+                "hacknet_node_purchase_cost": 0.85
             },
             "startingCost": 11000000,
             "info": "Uploads the architecture and design details of a Hacknet Node's CPU into the brain. This allows the user to engineer custom hardware and software  for the Hacknet Node that provides better performance.",
@@ -786,8 +784,8 @@ const dump = {
             "name": "Hacknet Node Cache Architecture Neural-Upload",
             "prereqs": [],
             "mults": {
-                "hacknet_node_money_mult": 1.1,
-                "hacknet_node_level_cost_mult": 0.85
+                "hacknet_node_money": 1.1,
+                "hacknet_node_level_cost": 0.85
             },
             "startingCost": 5500000,
             "info": "Uploads the architecture and design details of a Hacknet Node's main-memory cache into the brain. This allows the user to engineer custom cache hardware for the  Hacknet Node that offers better performance.",
@@ -800,8 +798,8 @@ const dump = {
             "name": "Hacknet Node NIC Architecture Neural-Upload",
             "prereqs": [],
             "mults": {
-                "hacknet_node_money_mult": 1.1,
-                "hacknet_node_purchase_cost_mult": 0.9
+                "hacknet_node_money": 1.1,
+                "hacknet_node_purchase_cost": 0.9
             },
             "startingCost": 4500000,
             "info": "Uploads the architecture and design details of a Hacknet Node's Network Interface Card (NIC) into the brain. This allows the user to engineer a custom NIC for the Hacknet Node that offers better performance.",
@@ -814,7 +812,7 @@ const dump = {
             "name": "Hacknet Node Kernel Direct-Neural Interface",
             "prereqs": [],
             "mults": {
-                "hacknet_node_money_mult": 1.25
+                "hacknet_node_money": 1.25
             },
             "startingCost": 40000000,
             "info": "Installs a Direct-Neural Interface jack into the arm that is capable of connecting to a Hacknet Node. This lets the user access and manipulate the Node's kernel using electrochemical signals.",
@@ -827,7 +825,7 @@ const dump = {
             "name": "Hacknet Node Core Direct-Neural Interface",
             "prereqs": [],
             "mults": {
-                "hacknet_node_money_mult": 1.45
+                "hacknet_node_money": 1.45
             },
             "startingCost": 60000000,
             "info": "Installs a Direct-Neural Interface jack into the arm that is capable of connecting to a Hacknet Node. This lets the user access and manipulate the Node's processing logic using electrochemical signals.",
@@ -840,32 +838,32 @@ const dump = {
             "name": "NeuroFlux Governor",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.01,
-                "strength_mult": 1.01,
-                "defense_mult": 1.01,
-                "dexterity_mult": 1.01,
-                "agility_mult": 1.01,
-                "charisma_mult": 1.01,
-                "hacking_exp_mult": 1.01,
-                "strength_exp_mult": 1.01,
-                "defense_exp_mult": 1.01,
-                "dexterity_exp_mult": 1.01,
-                "agility_exp_mult": 1.01,
-                "charisma_exp_mult": 1.01,
-                "hacking_chance_mult": 1.01,
-                "hacking_speed_mult": 1.01,
-                "hacking_money_mult": 1.01,
-                "hacking_grow_mult": 1.01,
-                "company_rep_mult": 1.01,
-                "faction_rep_mult": 1.01,
-                "crime_money_mult": 1.01,
-                "crime_success_mult": 1.01,
-                "work_money_mult": 1.01,
-                "hacknet_node_money_mult": 1.01,
-                "hacknet_node_purchase_cost_mult": 0.99,
-                "hacknet_node_ram_cost_mult": 0.99,
-                "hacknet_node_core_cost_mult": 0.99,
-                "hacknet_node_level_cost_mult": 0.99
+                "hacking": 1.01,
+                "strength": 1.01,
+                "defense": 1.01,
+                "dexterity": 1.01,
+                "agility": 1.01,
+                "charisma": 1.01,
+                "hacking_exp": 1.01,
+                "strength_exp": 1.01,
+                "defense_exp": 1.01,
+                "dexterity_exp": 1.01,
+                "agility_exp": 1.01,
+                "charisma_exp": 1.01,
+                "hacking_chance": 1.01,
+                "hacking_speed": 1.01,
+                "hacking_money": 1.01,
+                "hacking_grow": 1.01,
+                "company_rep": 1.01,
+                "faction_rep": 1.01,
+                "crime_money": 1.01,
+                "crime_success": 1.01,
+                "work_money": 1.01,
+                "hacknet_node_money": 1.01,
+                "hacknet_node_purchase_cost": 0.99,
+                "hacknet_node_ram_cost": 0.99,
+                "hacknet_node_core_cost": 0.99,
+                "hacknet_node_level_cost": 0.99
             },
             "startingCost": 3750000,
             "info": "A device that is embedded in the back of the neck. The NeuroFlux Governor monitors and regulates nervous impulses coming to and from the spinal column, essentially 'governing' the body. By doing so, it improves the functionality of the body's nervous system.",
@@ -878,12 +876,12 @@ const dump = {
             "name": "Neurotrainer I",
             "prereqs": [],
             "mults": {
-                "hacking_exp_mult": 1.1,
-                "strength_exp_mult": 1.1,
-                "defense_exp_mult": 1.1,
-                "dexterity_exp_mult": 1.1,
-                "agility_exp_mult": 1.1,
-                "charisma_exp_mult": 1.1
+                "hacking_exp": 1.1,
+                "strength_exp": 1.1,
+                "defense_exp": 1.1,
+                "dexterity_exp": 1.1,
+                "agility_exp": 1.1,
+                "charisma_exp": 1.1
             },
             "startingCost": 4000000,
             "info": "A decentralized cranial implant that improves the brain's ability to learn. It is installed by releasing millions of nanobots into the human brain, each of which attaches to a different neural pathway to enhance the brain's ability to retain and retrieve information.",
@@ -896,12 +894,12 @@ const dump = {
             "name": "Neurotrainer II",
             "prereqs": [],
             "mults": {
-                "hacking_exp_mult": 1.15,
-                "strength_exp_mult": 1.15,
-                "defense_exp_mult": 1.15,
-                "dexterity_exp_mult": 1.15,
-                "agility_exp_mult": 1.15,
-                "charisma_exp_mult": 1.15
+                "hacking_exp": 1.15,
+                "strength_exp": 1.15,
+                "defense_exp": 1.15,
+                "dexterity_exp": 1.15,
+                "agility_exp": 1.15,
+                "charisma_exp": 1.15
             },
             "startingCost": 45000000,
             "info": "A decentralized cranial implant that improves the brain's ability to learn. This is a more powerful version of the Neurotrainer I augmentation, but it does not require Neurotrainer I to be installed as a prerequisite.",
@@ -914,12 +912,12 @@ const dump = {
             "name": "Neurotrainer III",
             "prereqs": [],
             "mults": {
-                "hacking_exp_mult": 1.2,
-                "strength_exp_mult": 1.2,
-                "defense_exp_mult": 1.2,
-                "dexterity_exp_mult": 1.2,
-                "agility_exp_mult": 1.2,
-                "charisma_exp_mult": 1.2
+                "hacking_exp": 1.2,
+                "strength_exp": 1.2,
+                "defense_exp": 1.2,
+                "dexterity_exp": 1.2,
+                "agility_exp": 1.2,
+                "charisma_exp": 1.2
             },
             "startingCost": 130000000,
             "info": "A decentralized cranial implant that improves the brain's ability to learn. This is a more powerful version of the Neurotrainer I and Neurotrainer II augmentation, but it does not require either of them to be installed as a prerequisite.",
@@ -932,9 +930,9 @@ const dump = {
             "name": "HyperSight Corneal Implant",
             "prereqs": [],
             "mults": {
-                "dexterity_mult": 1.4,
-                "hacking_speed_mult": 1.03,
-                "hacking_money_mult": 1.1
+                "dexterity": 1.4,
+                "hacking_speed": 1.03,
+                "hacking_money": 1.1
             },
             "startingCost": 2750000000,
             "info": "A bionic eye implant that grants sight capabilities far beyond those of a natural human. Embedded circuitry within the implant provides the ability to detect heat and movement through solid objects such as walls, thus providing 'x-ray vision'-like capabilities.",
@@ -947,8 +945,8 @@ const dump = {
             "name": "LuminCloaking-V1 Skin Implant",
             "prereqs": [],
             "mults": {
-                "agility_mult": 1.05,
-                "crime_money_mult": 1.1
+                "agility": 1.05,
+                "crime_money": 1.1
             },
             "startingCost": 5000000,
             "info": "A skin implant that reinforces the skin with highly-advanced synthetic cells. These cells, when powered, have a negative refractive index. As a result, they bend light around the skin, making the user much harder to see to the naked eye.",
@@ -963,9 +961,9 @@ const dump = {
                 "LuminCloaking-V1 Skin Implant"
             ],
             "mults": {
-                "defense_mult": 1.1,
-                "agility_mult": 1.1,
-                "crime_money_mult": 1.25
+                "defense": 1.1,
+                "agility": 1.1,
+                "crime_money": 1.25
             },
             "startingCost": 30000000,
             "info": "This is a more advanced version of the LuminCloaking-V1 augmentation. This skin implant reinforces the skin with highly-advanced synthetic cells. These cells, when powered, are capable of not only bending light but also of bending heat, making the user more resilient as well as stealthy.",
@@ -978,9 +976,9 @@ const dump = {
             "name": "SmartSonar Implant",
             "prereqs": [],
             "mults": {
-                "dexterity_mult": 1.1,
-                "dexterity_exp_mult": 1.15,
-                "crime_money_mult": 1.25
+                "dexterity": 1.1,
+                "dexterity_exp": 1.15,
+                "crime_money": 1.25
             },
             "startingCost": 75000000,
             "info": "A cochlear implant that helps the player detect and locate enemies using sound propagation.",
@@ -993,18 +991,18 @@ const dump = {
             "name": "Power Recirculation Core",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.05,
-                "strength_mult": 1.05,
-                "defense_mult": 1.05,
-                "dexterity_mult": 1.05,
-                "agility_mult": 1.05,
-                "charisma_mult": 1.05,
-                "hacking_exp_mult": 1.1,
-                "strength_exp_mult": 1.1,
-                "defense_exp_mult": 1.1,
-                "dexterity_exp_mult": 1.1,
-                "agility_exp_mult": 1.1,
-                "charisma_exp_mult": 1.1
+                "hacking": 1.05,
+                "strength": 1.05,
+                "defense": 1.05,
+                "dexterity": 1.05,
+                "agility": 1.05,
+                "charisma": 1.05,
+                "hacking_exp": 1.1,
+                "strength_exp": 1.1,
+                "defense_exp": 1.1,
+                "dexterity_exp": 1.1,
+                "agility_exp": 1.1,
+                "charisma_exp": 1.1
             },
             "startingCost": 180000000,
             "info": "The body's nerves are attached with polypyrrole nanocircuits that are capable of capturing wasted energy, in the form of heat, and converting it back into usable power.",
@@ -1017,10 +1015,10 @@ const dump = {
             "name": "QLink",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.75,
-                "hacking_chance_mult": 2.5,
-                "hacking_speed_mult": 2,
-                "hacking_money_mult": 4
+                "hacking": 1.75,
+                "hacking_chance": 2.5,
+                "hacking_speed": 2,
+                "hacking_money": 4
             },
             "startingCost": 25000000000000,
             "info": "A brain implant that wirelessly connects you to the Illuminati's quantum supercomputer, allowing you to access and use its incredible computing power.",
@@ -1044,11 +1042,11 @@ const dump = {
             "name": "SPTN-97 Gene Modification",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.15,
-                "strength_mult": 1.75,
-                "defense_mult": 1.75,
-                "dexterity_mult": 1.75,
-                "agility_mult": 1.75
+                "hacking": 1.15,
+                "strength": 1.75,
+                "defense": 1.75,
+                "dexterity": 1.75,
+                "agility": 1.75
             },
             "startingCost": 4875000000,
             "info": "The SPTN-97 gene is injected into the genome. The SPTN-97 gene is an artificially-synthesized gene that was developed by DARPA to create super-soldiers through genetic modification. The gene was outlawed in 2056.",
@@ -1061,7 +1059,7 @@ const dump = {
             "name": "ECorp HVMind Implant",
             "prereqs": [],
             "mults": {
-                "hacking_grow_mult": 3
+                "hacking_grow": 3
             },
             "startingCost": 5500000000,
             "info": "A brain implant developed by ECorp. They do not reveal what exactly the implant does, but they promise that it will greatly enhance your abilities.",
@@ -1074,14 +1072,14 @@ const dump = {
             "name": "CordiARC Fusion Reactor",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.35,
-                "defense_mult": 1.35,
-                "dexterity_mult": 1.35,
-                "agility_mult": 1.35,
-                "strength_exp_mult": 1.35,
-                "defense_exp_mult": 1.35,
-                "dexterity_exp_mult": 1.35,
-                "agility_exp_mult": 1.35
+                "strength": 1.35,
+                "defense": 1.35,
+                "dexterity": 1.35,
+                "agility": 1.35,
+                "strength_exp": 1.35,
+                "defense_exp": 1.35,
+                "dexterity_exp": 1.35,
+                "agility_exp": 1.35
             },
             "startingCost": 5000000000,
             "info": "The thoracic cavity is equipped with a small chamber designed to hold and sustain hydrogen plasma. The plasma is used to generate fusion power through nuclear fusion, providing limitless amounts of clean energy for the body.",
@@ -1094,10 +1092,10 @@ const dump = {
             "name": "SmartJaw",
             "prereqs": [],
             "mults": {
-                "charisma_mult": 1.5,
-                "charisma_exp_mult": 1.5,
-                "company_rep_mult": 1.25,
-                "faction_rep_mult": 1.25
+                "charisma": 1.5,
+                "charisma_exp": 1.5,
+                "company_rep": 1.25,
+                "faction_rep": 1.25
             },
             "startingCost": 2750000000,
             "info": "A bionic jaw that contains advanced hardware and software capable of psychoanalyzing and profiling the personality of others using optical imaging software.",
@@ -1110,8 +1108,8 @@ const dump = {
             "name": "Neotra",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.55,
-                "defense_mult": 1.55
+                "strength": 1.55,
+                "defense": 1.55
             },
             "startingCost": 2875000000,
             "info": "A highly-advanced techno-organic drug that is injected into the skeletal and integumentary system. The drug permanently modifies the DNA of the body's skin and bone cells, granting them the ability to repair and restructure themselves.",
@@ -1124,18 +1122,18 @@ const dump = {
             "name": "Xanipher",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.2,
-                "strength_mult": 1.2,
-                "defense_mult": 1.2,
-                "dexterity_mult": 1.2,
-                "agility_mult": 1.2,
-                "charisma_mult": 1.2,
-                "hacking_exp_mult": 1.15,
-                "strength_exp_mult": 1.15,
-                "defense_exp_mult": 1.15,
-                "dexterity_exp_mult": 1.15,
-                "agility_exp_mult": 1.15,
-                "charisma_exp_mult": 1.15
+                "hacking": 1.2,
+                "strength": 1.2,
+                "defense": 1.2,
+                "dexterity": 1.2,
+                "agility": 1.2,
+                "charisma": 1.2,
+                "hacking_exp": 1.15,
+                "strength_exp": 1.15,
+                "defense_exp": 1.15,
+                "dexterity_exp": 1.15,
+                "agility_exp": 1.15,
+                "charisma_exp": 1.15
             },
             "startingCost": 4250000000,
             "info": "A concoction of advanced nanobots that is orally ingested into the body. These nanobots induce physiological changes and significantly improve the body's functioning in all aspects.",
@@ -1148,7 +1146,7 @@ const dump = {
             "name": "Hydroflame Left Arm",
             "prereqs": [],
             "mults": {
-                "strength_mult": 2.7
+                "strength": 2.7
             },
             "startingCost": 2500000000000,
             "info": "The left arm of a legendary BitRunner who ascended beyond this world. It projects a light blue energy shield that protects the exposed inner parts. Even though it contains no weapons, the advanced tungsten titanium alloy increases the users strength to unbelievable levels. The augmentation gets more powerful over time for seemingly no reason.",
@@ -1161,12 +1159,12 @@ const dump = {
             "name": "nextSENS Gene Modification",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.2,
-                "strength_mult": 1.2,
-                "defense_mult": 1.2,
-                "dexterity_mult": 1.2,
-                "agility_mult": 1.2,
-                "charisma_mult": 1.2
+                "hacking": 1.2,
+                "strength": 1.2,
+                "defense": 1.2,
+                "dexterity": 1.2,
+                "agility": 1.2,
+                "charisma": 1.2
             },
             "startingCost": 1925000000,
             "info": "The body is genetically re-engineered to maintain a state of negligible senescence, preventing the body from deteriorating with age.",
@@ -1179,8 +1177,8 @@ const dump = {
             "name": "OmniTek InfoLoad",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.2,
-                "hacking_exp_mult": 1.25
+                "hacking": 1.2,
+                "hacking_exp": 1.25
             },
             "startingCost": 2875000000,
             "info": "OmniTek's data and information repository is uploaded into your brain, enhancing your programming and hacking abilities.",
@@ -1193,9 +1191,9 @@ const dump = {
             "name": "Photosynthetic Cells",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.4,
-                "defense_mult": 1.4,
-                "agility_mult": 1.4
+                "strength": 1.4,
+                "defense": 1.4,
+                "agility": 1.4
             },
             "startingCost": 2750000000,
             "info": "Chloroplasts are added to epidermal stem cells and are applied to the body using a skin graft. The result is photosynthetic skin cells, allowing users to generate their own energy and nutrition using solar power.",
@@ -1208,10 +1206,10 @@ const dump = {
             "name": "BitRunners Neurolink",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.15,
-                "hacking_exp_mult": 1.2,
-                "hacking_chance_mult": 1.1,
-                "hacking_speed_mult": 1.05
+                "hacking": 1.15,
+                "hacking_exp": 1.2,
+                "hacking_chance": 1.1,
+                "hacking_speed": 1.05
             },
             "startingCost": 4375000000,
             "info": "A brain implant that provides a high-bandwidth, direct neural link between your mind and the BitRunners' data servers, which reportedly contain the largest database of hacking tools and information in the world.",
@@ -1224,11 +1222,11 @@ const dump = {
             "name": "The Black Hand",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.1,
-                "strength_mult": 1.15,
-                "dexterity_mult": 1.15,
-                "hacking_speed_mult": 1.02,
-                "hacking_money_mult": 1.1
+                "hacking": 1.1,
+                "strength": 1.15,
+                "dexterity": 1.15,
+                "hacking_speed": 1.02,
+                "hacking_money": 1.1
             },
             "startingCost": 550000000,
             "info": "A highly advanced bionic hand. This prosthetic not only enhances strength and dexterity but it is also embedded with hardware and firmware that lets the user connect to, access, and hack devices and machines by just touching them.",
@@ -1241,8 +1239,8 @@ const dump = {
             "name": "CRTX42-AA Gene Modification",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 1.08,
-                "hacking_exp_mult": 1.15
+                "hacking": 1.08,
+                "hacking_exp": 1.15
             },
             "startingCost": 225000000,
             "info": "The CRTX42-AA gene is injected into the genome. The CRTX42-AA is an artificially-synthesized gene that targets the visual and prefrontal cortex and improves cognitive abilities.",
@@ -1255,7 +1253,7 @@ const dump = {
             "name": "Neuregen Gene Modification",
             "prereqs": [],
             "mults": {
-                "hacking_exp_mult": 1.4
+                "hacking_exp": 1.4
             },
             "startingCost": 375000000,
             "info": "A drug that genetically modifies the neurons in the brain resulting in neurons that never die, continuously regenerate, and strengthen themselves.",
@@ -1279,10 +1277,10 @@ const dump = {
             "name": "NutriGen Implant",
             "prereqs": [],
             "mults": {
-                "strength_exp_mult": 1.2,
-                "defense_exp_mult": 1.2,
-                "dexterity_exp_mult": 1.2,
-                "agility_exp_mult": 1.2
+                "strength_exp": 1.2,
+                "defense_exp": 1.2,
+                "dexterity_exp": 1.2,
+                "agility_exp": 1.2
             },
             "startingCost": 2500000,
             "info": "A thermo-powered artificial nutrition generator. Endogenously synthesizes glucose, amino acids, and vitamins and redistributes them across the body. The device is powered by the body's naturally wasted energy in the form of heat.",
@@ -1295,13 +1293,13 @@ const dump = {
             "name": "PCMatrix",
             "prereqs": [],
             "mults": {
-                "charisma_mult": 1.0777,
-                "charisma_exp_mult": 1.0777,
-                "company_rep_mult": 1.0777,
-                "faction_rep_mult": 1.0777,
-                "crime_money_mult": 1.0777,
-                "crime_success_mult": 1.0777,
-                "work_money_mult": 1.777
+                "charisma": 1.0777,
+                "charisma_exp": 1.0777,
+                "company_rep": 1.0777,
+                "faction_rep": 1.0777,
+                "crime_money": 1.0777,
+                "crime_success": 1.0777,
+                "work_money": 1.777
             },
             "startingCost": 2000000000,
             "info": "A 'Probability Computation Matrix' is installed in the frontal cortex. This implant uses advanced mathematical algorithims to rapidly identify and compute statistical outcomes of nearly every situation.",
@@ -1314,9 +1312,9 @@ const dump = {
             "name": "INFRARET Enhancement",
             "prereqs": [],
             "mults": {
-                "dexterity_mult": 1.1,
-                "crime_money_mult": 1.1,
-                "crime_success_mult": 1.25
+                "dexterity": 1.1,
+                "crime_money": 1.1,
+                "crime_success": 1.25
             },
             "startingCost": 30000000,
             "info": "A tiny chip that sits behind the retinae. This implant lets the user visually detect infrared radiation.",
@@ -1329,7 +1327,7 @@ const dump = {
             "name": "DermaForce Particle Barrier",
             "prereqs": [],
             "mults": {
-                "defense_mult": 1.4
+                "defense": 1.4
             },
             "startingCost": 50000000,
             "info": "Synthetic skin that is grafted onto the body. This skin consists of millions of nanobots capable of projecting high-density muon beams, creating an energy barrier around the user.",
@@ -1344,10 +1342,10 @@ const dump = {
                 "BrachiBlades"
             ],
             "mults": {
-                "strength_mult": 1.4,
-                "defense_mult": 1.4,
-                "crime_money_mult": 1.3,
-                "crime_success_mult": 1.1
+                "strength": 1.4,
+                "defense": 1.4,
+                "crime_money": 1.3,
+                "crime_success": 1.1
             },
             "startingCost": 2500000000,
             "info": "An upgrade to the BrachiBlades augmentation. It infuses the retractable blades with an advanced graphene material making them stronger and lighter.",
@@ -1362,8 +1360,8 @@ const dump = {
                 "Bionic Arms"
             ],
             "mults": {
-                "strength_mult": 1.85,
-                "dexterity_mult": 1.85
+                "strength": 1.85,
+                "dexterity": 1.85
             },
             "startingCost": 3750000000,
             "info": "An upgrade to the Bionic Arms augmentation. It infuses the prosthetic arms with an advanced graphene material to make them stronger and lighter.",
@@ -1376,10 +1374,10 @@ const dump = {
             "name": "BrachiBlades",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.15,
-                "defense_mult": 1.15,
-                "crime_money_mult": 1.15,
-                "crime_success_mult": 1.1
+                "strength": 1.15,
+                "defense": 1.15,
+                "crime_money": 1.15,
+                "crime_success": 1.1
             },
             "startingCost": 90000000,
             "info": "A set of retractable plasteel blades that are implanted in the arm, underneath the skin.",
@@ -1392,8 +1390,8 @@ const dump = {
             "name": "Bionic Arms",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.3,
-                "dexterity_mult": 1.3
+                "strength": 1.3,
+                "dexterity": 1.3
             },
             "startingCost": 275000000,
             "info": "Cybernetic arms created from plasteel and carbon fibers that completely replace the user's organic arms.",
@@ -1406,9 +1404,9 @@ const dump = {
             "name": "Social Negotiation Assistant (S.N.A)",
             "prereqs": [],
             "mults": {
-                "company_rep_mult": 1.15,
-                "faction_rep_mult": 1.15,
-                "work_money_mult": 1.1
+                "company_rep": 1.15,
+                "faction_rep": 1.15,
+                "work_money": 1.1
             },
             "startingCost": 30000000,
             "info": "A cranial implant that affects the user's personality, making them better at negotiation in social situations.",
@@ -1432,8 +1430,8 @@ const dump = {
             "name": "EsperTech Bladeburner Eyewear",
             "prereqs": [],
             "mults": {
-                "dexterity_mult": 1.05,
-                "bladeburner_success_chance_mult": 1.03
+                "dexterity": 1.05,
+                "bladeburner_success_chance": 1.03
             },
             "startingCost": 165000000,
             "info": "Ballistic-grade protective and retractable eyewear that was designed specifically for Bladeburner units. This is implanted by installing a mechanical frame in the skull's orbit. This frame interfaces with the brain and allows the user to automatically extrude and extract the eyewear. The eyewear protects against debris, shrapnel, lasers, blinding flashes, and gas. It is also embedded with a data processing chip that can be programmed to display an AR HUD to assist the user in field missions.",
@@ -1446,9 +1444,9 @@ const dump = {
             "name": "EMS-4 Recombination",
             "prereqs": [],
             "mults": {
-                "bladeburner_stamina_gain_mult": 1.02,
-                "bladeburner_analysis_mult": 1.05,
-                "bladeburner_success_chance_mult": 1.03
+                "bladeburner_stamina_gain": 1.02,
+                "bladeburner_analysis": 1.05,
+                "bladeburner_success_chance": 1.03
             },
             "startingCost": 275000000,
             "info": "A DNA recombination of the EMS-4 Gene. This genetic engineering technique was originally used on Bladeburners during the Synthoid uprising to induce wakefulness and concentration, suppress fear, reduce empathy, improve reflexes, and improve memory among other things.",
@@ -1461,10 +1459,10 @@ const dump = {
             "name": "ORION-MKIV Shoulder",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.05,
-                "defense_mult": 1.05,
-                "dexterity_mult": 1.05,
-                "bladeburner_success_chance_mult": 1.04
+                "strength": 1.05,
+                "defense": 1.05,
+                "dexterity": 1.05,
+                "bladeburner_success_chance": 1.04
             },
             "startingCost": 550000000,
             "info": "A bionic shoulder augmentation for the right shoulder. Using cybernetics, the ORION-MKIV shoulder enhances the strength and dexterity of the user's right arm. It also provides protection due to its crystallized graphene plating.",
@@ -1477,7 +1475,7 @@ const dump = {
             "name": "Hyperion Plasma Cannon V1",
             "prereqs": [],
             "mults": {
-                "bladeburner_success_chance_mult": 1.06
+                "bladeburner_success_chance": 1.06
             },
             "startingCost": 2750000000,
             "info": "A pair of mini plasma cannons embedded into the hands. The Hyperion is capable of rapidly firing bolts of high-density plasma. The weapon is meant to be used against augmented enemies as the ionized nature of the plasma disrupts the electrical systems of Augmentations. However, it can also be effective against non-augmented enemies due to its high temperature and concussive force.",
@@ -1492,7 +1490,7 @@ const dump = {
                 "Hyperion Plasma Cannon V1"
             ],
             "mults": {
-                "bladeburner_success_chance_mult": 1.08
+                "bladeburner_success_chance": 1.08
             },
             "startingCost": 5500000000,
             "info": "A pair of mini plasma cannons embedded into the hands. This augmentation is more advanced and powerful than the original V1 model. This V2 model is more power-efficient, more accurate, and can fire plasma bolts at a much higher velocity than the V1 model.",
@@ -1505,11 +1503,11 @@ const dump = {
             "name": "GOLEM Serum",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.07,
-                "defense_mult": 1.07,
-                "dexterity_mult": 1.07,
-                "agility_mult": 1.07,
-                "bladeburner_stamina_gain_mult": 1.05
+                "strength": 1.07,
+                "defense": 1.07,
+                "dexterity": 1.07,
+                "agility": 1.07,
+                "bladeburner_stamina_gain": 1.05
             },
             "startingCost": 11000000000,
             "info": "A serum that permanently enhances many aspects of human capabilities, including strength, speed, immune system enhancements, and mitochondrial efficiency. The serum was originally developed by the Chinese military in an attempt to create super soldiers.",
@@ -1522,9 +1520,9 @@ const dump = {
             "name": "Vangelis Virus",
             "prereqs": [],
             "mults": {
-                "dexterity_exp_mult": 1.1,
-                "bladeburner_analysis_mult": 1.1,
-                "bladeburner_success_chance_mult": 1.04
+                "dexterity_exp": 1.1,
+                "bladeburner_analysis": 1.1,
+                "bladeburner_success_chance": 1.04
             },
             "startingCost": 2750000000,
             "info": "A synthetic symbiotic virus that is injected into human brain tissue. The Vangelis virus heightens the senses and focus of its host, and also enhances its intuition.",
@@ -1539,10 +1537,10 @@ const dump = {
                 "Vangelis Virus"
             ],
             "mults": {
-                "defense_exp_mult": 1.1,
-                "dexterity_exp_mult": 1.1,
-                "bladeburner_analysis_mult": 1.15,
-                "bladeburner_success_chance_mult": 1.05
+                "defense_exp": 1.1,
+                "dexterity_exp": 1.1,
+                "bladeburner_analysis": 1.15,
+                "bladeburner_success_chance": 1.05
             },
             "startingCost": 11000000000,
             "info": "An improved version of Vangelis, a synthetic symbiotic virus that is injected into human brain tissue. On top of the benefits of the original virus, this also grants an accelerated healing factor and enhanced reflexes.",
@@ -1555,11 +1553,11 @@ const dump = {
             "name": "I.N.T.E.R.L.I.N.K.E.D",
             "prereqs": [],
             "mults": {
-                "strength_exp_mult": 1.05,
-                "defense_exp_mult": 1.05,
-                "dexterity_exp_mult": 1.05,
-                "agility_exp_mult": 1.05,
-                "bladeburner_max_stamina_mult": 1.1
+                "strength_exp": 1.05,
+                "defense_exp": 1.05,
+                "dexterity_exp": 1.05,
+                "agility_exp": 1.05,
+                "bladeburner_max_stamina": 1.1
             },
             "startingCost": 5500000000,
             "info": "The DNA is genetically modified to enhance the human's body extracellular matrix (ECM). This improves the ECM's ability to structurally support the body and grants heightened strength and durability.",
@@ -1572,9 +1570,9 @@ const dump = {
             "name": "Blade's Runners",
             "prereqs": [],
             "mults": {
-                "agility_mult": 1.05,
-                "bladeburner_max_stamina_mult": 1.05,
-                "bladeburner_stamina_gain_mult": 1.05
+                "agility": 1.05,
+                "bladeburner_max_stamina": 1.05,
+                "bladeburner_stamina_gain": 1.05
             },
             "startingCost": 8250000000,
             "info": "A cybernetic foot augmentation that was specifically created for Bladeburners during the Synthoid Uprising. The organic musculature of the human foot is enhanced with flexible carbon nanotube matrices that are controlled by intelligent servo-motors.",
@@ -1587,12 +1585,12 @@ const dump = {
             "name": "BLADE-51b Tesla Armor",
             "prereqs": [],
             "mults": {
-                "strength_mult": 1.04,
-                "defense_mult": 1.04,
-                "dexterity_mult": 1.04,
-                "agility_mult": 1.04,
-                "bladeburner_stamina_gain_mult": 1.02,
-                "bladeburner_success_chance_mult": 1.03
+                "strength": 1.04,
+                "defense": 1.04,
+                "dexterity": 1.04,
+                "agility": 1.04,
+                "bladeburner_stamina_gain": 1.02,
+                "bladeburner_success_chance": 1.03
             },
             "startingCost": 1375000000,
             "info": "A powered exoskeleton suit designed as armor for Bladeburner units. This exoskeleton is incredibly adaptable and can protect the wearer from blunt, piercing, concussive, thermal, chemical, and electric trauma. It also enhances the user's physical abilities.",
@@ -1607,9 +1605,9 @@ const dump = {
                 "BLADE-51b Tesla Armor"
             ],
             "mults": {
-                "bladeburner_max_stamina_mult": 1.05,
-                "bladeburner_stamina_gain_mult": 1.02,
-                "bladeburner_success_chance_mult": 1.05
+                "bladeburner_max_stamina": 1.05,
+                "bladeburner_stamina_gain": 1.02,
+                "bladeburner_success_chance": 1.05
             },
             "startingCost": 2750000000,
             "info": "Upgrades the BLADE-51b Tesla Armor with Ion Power Cells, which are capable of more efficiently storing and using power.",
@@ -1624,8 +1622,8 @@ const dump = {
                 "BLADE-51b Tesla Armor"
             ],
             "mults": {
-                "defense_mult": 1.05,
-                "bladeburner_success_chance_mult": 1.06
+                "defense": 1.05,
+                "bladeburner_success_chance": 1.06
             },
             "startingCost": 5500000000,
             "info": "Upgrades the BLADE-51b Tesla Armor with a plasma energy propulsion system that is capable of projecting an energy shielding force field.",
@@ -1640,7 +1638,7 @@ const dump = {
                 "BLADE-51b Tesla Armor"
             ],
             "mults": {
-                "bladeburner_success_chance_mult": 1.08
+                "bladeburner_success_chance": 1.08
             },
             "startingCost": 16500000000,
             "info": "Upgrades the BLADE-51b Tesla Armor with a concentrated deuterium-fluoride laser weapon. It's precision and accuracy makes it useful for quickly neutralizing threats while keeping casualties to a minimum.",
@@ -1655,7 +1653,7 @@ const dump = {
                 "BLADE-51b Tesla Armor: Unibeam Upgrade"
             ],
             "mults": {
-                "bladeburner_success_chance_mult": 1.1
+                "bladeburner_success_chance": 1.1
             },
             "startingCost": 27500000000,
             "info": "Upgrades the BLADE-51b Tesla Armor Unibeam augmentation to use a multiple-fiber system. This upgraded weapon uses multiple fiber laser modules that combine together to form a single, more powerful beam of up to 2000MW.",
@@ -1670,8 +1668,8 @@ const dump = {
                 "BLADE-51b Tesla Armor"
             ],
             "mults": {
-                "bladeburner_analysis_mult": 1.15,
-                "bladeburner_success_chance_mult": 1.02
+                "bladeburner_analysis": 1.15,
+                "bladeburner_success_chance": 1.02
             },
             "startingCost": 1100000000,
             "info": "Upgrades the BLADE-51b Tesla Armor with an AI Information Processing Unit that was specially designed to analyze Synthoid related data and information.",
@@ -1695,32 +1693,32 @@ const dump = {
             "name": "Stanek's Gift - Genesis",
             "prereqs": [],
             "mults": {
-                "hacking_mult": 0.9,
-                "strength_mult": 0.9,
-                "defense_mult": 0.9,
-                "dexterity_mult": 0.9,
-                "agility_mult": 0.9,
-                "charisma_mult": 0.9,
-                "hacking_exp_mult": 0.9,
-                "strength_exp_mult": 0.9,
-                "defense_exp_mult": 0.9,
-                "dexterity_exp_mult": 0.9,
-                "agility_exp_mult": 0.9,
-                "charisma_exp_mult": 0.9,
-                "hacking_chance_mult": 0.9,
-                "hacking_speed_mult": 0.9,
-                "hacking_money_mult": 0.9,
-                "hacking_grow_mult": 0.9,
-                "company_rep_mult": 0.9,
-                "faction_rep_mult": 0.9,
-                "crime_money_mult": 0.9,
-                "crime_success_mult": 0.9,
-                "work_money_mult": 0.9,
-                "hacknet_node_money_mult": 0.9,
-                "hacknet_node_purchase_cost_mult": 1.1,
-                "hacknet_node_ram_cost_mult": 1.1,
-                "hacknet_node_core_cost_mult": 1.1,
-                "hacknet_node_level_cost_mult": 1.1
+                "hacking": 0.9,
+                "strength": 0.9,
+                "defense": 0.9,
+                "dexterity": 0.9,
+                "agility": 0.9,
+                "charisma": 0.9,
+                "hacking_exp": 0.9,
+                "strength_exp": 0.9,
+                "defense_exp": 0.9,
+                "dexterity_exp": 0.9,
+                "agility_exp": 0.9,
+                "charisma_exp": 0.9,
+                "hacking_chance": 0.9,
+                "hacking_speed": 0.9,
+                "hacking_money": 0.9,
+                "hacking_grow": 0.9,
+                "company_rep": 0.9,
+                "faction_rep": 0.9,
+                "crime_money": 0.9,
+                "crime_success": 0.9,
+                "work_money": 0.9,
+                "hacknet_node_money": 0.9,
+                "hacknet_node_purchase_cost": 1.1,
+                "hacknet_node_ram_cost": 1.1,
+                "hacknet_node_core_cost": 1.1,
+                "hacknet_node_level_cost": 1.1
             },
             "startingCost": 0,
             "info": "Allison \"Mother\" Stanek imparts you with her gift. An experimental Augmentation implanted at the base of the neck. It allows you to overclock your entire system by carefully changing the configuration.",
@@ -1735,32 +1733,32 @@ const dump = {
                 "Stanek's Gift - Genesis"
             ],
             "mults": {
-                "hacking_mult": 1.0555555555555556,
-                "strength_mult": 1.0555555555555556,
-                "defense_mult": 1.0555555555555556,
-                "dexterity_mult": 1.0555555555555556,
-                "agility_mult": 1.0555555555555556,
-                "charisma_mult": 1.0555555555555556,
-                "hacking_exp_mult": 1.0555555555555556,
-                "strength_exp_mult": 1.0555555555555556,
-                "defense_exp_mult": 1.0555555555555556,
-                "dexterity_exp_mult": 1.0555555555555556,
-                "agility_exp_mult": 1.0555555555555556,
-                "charisma_exp_mult": 1.0555555555555556,
-                "hacking_chance_mult": 1.0555555555555556,
-                "hacking_speed_mult": 1.0555555555555556,
-                "hacking_money_mult": 1.0555555555555556,
-                "hacking_grow_mult": 1.0555555555555556,
-                "company_rep_mult": 1.0555555555555556,
-                "faction_rep_mult": 1.0555555555555556,
-                "crime_money_mult": 1.0555555555555556,
-                "crime_success_mult": 1.0555555555555556,
-                "work_money_mult": 1.0555555555555556,
-                "hacknet_node_money_mult": 1.0555555555555556,
-                "hacknet_node_purchase_cost_mult": 0.9545454545454545,
-                "hacknet_node_ram_cost_mult": 0.9545454545454545,
-                "hacknet_node_core_cost_mult": 0.9545454545454545,
-                "hacknet_node_level_cost_mult": 0.9545454545454545
+                "hacking": 1.0555555555555556,
+                "strength": 1.0555555555555556,
+                "defense": 1.0555555555555556,
+                "dexterity": 1.0555555555555556,
+                "agility": 1.0555555555555556,
+                "charisma": 1.0555555555555556,
+                "hacking_exp": 1.0555555555555556,
+                "strength_exp": 1.0555555555555556,
+                "defense_exp": 1.0555555555555556,
+                "dexterity_exp": 1.0555555555555556,
+                "agility_exp": 1.0555555555555556,
+                "charisma_exp": 1.0555555555555556,
+                "hacking_chance": 1.0555555555555556,
+                "hacking_speed": 1.0555555555555556,
+                "hacking_money": 1.0555555555555556,
+                "hacking_grow": 1.0555555555555556,
+                "company_rep": 1.0555555555555556,
+                "faction_rep": 1.0555555555555556,
+                "crime_money": 1.0555555555555556,
+                "crime_success": 1.0555555555555556,
+                "work_money": 1.0555555555555556,
+                "hacknet_node_money": 1.0555555555555556,
+                "hacknet_node_purchase_cost": 0.9545454545454545,
+                "hacknet_node_ram_cost": 0.9545454545454545,
+                "hacknet_node_core_cost": 0.9545454545454545,
+                "hacknet_node_level_cost": 0.9545454545454545
             },
             "startingCost": 0,
             "info": "The next evolution is near, a coming together of man and machine. A synthesis greater than the birth of the human organism. Time spent with the gift has allowed for acclimatization of the invasive augment and the toll it takes upon your frame granting lesser penalty of 5% to all stats.",
@@ -1775,32 +1773,32 @@ const dump = {
                 "Stanek's Gift - Awakening"
             ],
             "mults": {
-                "hacking_mult": 1.0526315789473684,
-                "strength_mult": 1.0526315789473684,
-                "defense_mult": 1.0526315789473684,
-                "dexterity_mult": 1.0526315789473684,
-                "agility_mult": 1.0526315789473684,
-                "charisma_mult": 1.0526315789473684,
-                "hacking_exp_mult": 1.0526315789473684,
-                "strength_exp_mult": 1.0526315789473684,
-                "defense_exp_mult": 1.0526315789473684,
-                "dexterity_exp_mult": 1.0526315789473684,
-                "agility_exp_mult": 1.0526315789473684,
-                "charisma_exp_mult": 1.0526315789473684,
-                "hacking_chance_mult": 1.0526315789473684,
-                "hacking_speed_mult": 1.0526315789473684,
-                "hacking_money_mult": 1.0526315789473684,
-                "hacking_grow_mult": 1.0526315789473684,
-                "company_rep_mult": 1.0526315789473684,
-                "faction_rep_mult": 1.0526315789473684,
-                "crime_money_mult": 1.0526315789473684,
-                "crime_success_mult": 1.0526315789473684,
-                "work_money_mult": 1.0526315789473684,
-                "hacknet_node_money_mult": 1.0526315789473684,
-                "hacknet_node_purchase_cost_mult": 0.9523809523809523,
-                "hacknet_node_ram_cost_mult": 0.9523809523809523,
-                "hacknet_node_core_cost_mult": 0.9523809523809523,
-                "hacknet_node_level_cost_mult": 0.9523809523809523
+                "hacking": 1.0526315789473684,
+                "strength": 1.0526315789473684,
+                "defense": 1.0526315789473684,
+                "dexterity": 1.0526315789473684,
+                "agility": 1.0526315789473684,
+                "charisma": 1.0526315789473684,
+                "hacking_exp": 1.0526315789473684,
+                "strength_exp": 1.0526315789473684,
+                "defense_exp": 1.0526315789473684,
+                "dexterity_exp": 1.0526315789473684,
+                "agility_exp": 1.0526315789473684,
+                "charisma_exp": 1.0526315789473684,
+                "hacking_chance": 1.0526315789473684,
+                "hacking_speed": 1.0526315789473684,
+                "hacking_money": 1.0526315789473684,
+                "hacking_grow": 1.0526315789473684,
+                "company_rep": 1.0526315789473684,
+                "faction_rep": 1.0526315789473684,
+                "crime_money": 1.0526315789473684,
+                "crime_success": 1.0526315789473684,
+                "work_money": 1.0526315789473684,
+                "hacknet_node_money": 1.0526315789473684,
+                "hacknet_node_purchase_cost": 0.9523809523809523,
+                "hacknet_node_ram_cost": 0.9523809523809523,
+                "hacknet_node_core_cost": 0.9523809523809523,
+                "hacknet_node_level_cost": 0.9523809523809523
             },
             "startingCost": 0,
             "info": "The synthesis of human and machine is nothing to fear. It is our destiny. You will become greater than the sum of our parts. As One. Embrace your gift fully and wholly free of it's accursed toll. Serenity brings tranquility the form of no longer suffering a stat penalty. ",
@@ -5018,8 +5016,8 @@ export async function main(ns: NS) {
         };
 
         if (faction.offerHackingWork)  { data.factions[name].work["Hacking"]  = data.faction_work["Hacking"];  }
-        if (faction.offerFieldWork)    { data.factions[name].work["Security"] = data.faction_work["Security"]; }
-        if (faction.offerSecurityWork) { data.factions[name].work["Field"]    = data.faction_work["Field"];    }
+        if (faction.offerFieldWork)    { data.factions[name].work["Field"]    = data.faction_work["Field"];    }
+        if (faction.offerSecurityWork) { data.factions[name].work["Security"] = data.faction_work["Security"]; }
         
         if (faction.enemies.length > 0) { data.factions[name].enemies = faction.enemies; }
         if (faction_ex.company) { data.factions[name].company = faction_ex.company; }

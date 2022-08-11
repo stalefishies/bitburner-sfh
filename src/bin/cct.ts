@@ -1,7 +1,5 @@
-import { NS } from "netscript";
-
-const sleep = () => new Promise(resolve => setTimeout(resolve, 0));
-export async function contract(type: string, data: any): Promise<string[] | string | number | null> {
+const asleep = () => new Promise(resolve => setTimeout(resolve, 0));
+export async function contract(type: string, data: any, sleep = asleep): Promise<string[] | string | number | null> {
     let answer = null;
 
     switch (type) {
@@ -171,6 +169,18 @@ export async function contract(type: string, data: any): Promise<string[] | stri
                     if (answer == null || str.length < answer.length) { answer = str; }
                 }
             }
+        } break;
+
+        case "Encryption I: Caesar Cipher": {
+            answer = Array.from(data[0] as String).map(c => c === " " ? " " : String.fromCharCode(
+                0x41 + (c.charCodeAt(0) - 0x41 + (26 - data[1])) % 26)
+            ).join("");
+        } break;
+
+        case "Encryption II: Vigenère Cipher": {
+            answer = Array.from(data[0] as String).map((c, i) => String.fromCharCode(
+                0x41 + (c.charCodeAt(0) - 0x41 + (data[1].charCodeAt(i % data[1].length) - 0x41)) % 26)
+            ).join("");
         } break;
 
         case "Find All Valid Math Expressions": {
@@ -620,7 +630,8 @@ export async function main(ns: NS) {
         data = ns.codingcontract.getData(file, node);
     } catch { throw new Error(`Contract ${file} not found on ${node}`); }
 
-    let answer = await contract(type, data);
+    //sfh.print("CCT {50} {50} {30}", type, file, node);
+    let answer = await contract(type, data, ns.sleep.bind(ns, 0));
 
     if (answer == null) {
         sfh.can.contracts = false;

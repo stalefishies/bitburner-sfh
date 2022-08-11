@@ -1,10 +1,8 @@
-import { NS } from "netscript";
-
 export async function main(ns: NS) {
-    if (sfh.bb.player == null) {
+    if (sfh.x?.player == null) {
         sfh.getBitburnerInternals();
 
-        if (sfh.bb.player == null) {
+        if (sfh.x.player == null) {
             ns.toast("Backdoor: Could not get internal player", "error", 60000);
             return;
         }
@@ -17,15 +15,15 @@ export async function main(ns: NS) {
     }
 
     try {
-        const cur_server = sfh.bb.player.currentServer;
-        sfh.bb.player.currentServer = target;
+        const cur_server = sfh.x.player.currentServer;
+        sfh.x.player.currentServer = target;
         const promise = ns.singularity.installBackdoor();
-        sfh.bb.player.currentServer = cur_server;
+        sfh.x.player.currentServer = cur_server;
         await promise;
     } catch {
         ns.toast("Backdoor: Internal error!", "error", 60000);
-        sfh.bb.player.currentServer = "home";
-        sfh.bb.player.getCurrentServer().isConnectedTo = true;
+        sfh.x.player.currentServer = "home";
+        sfh.x.player.getCurrentServer().isConnectedTo = true;
     }
 
     return;

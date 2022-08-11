@@ -1,5 +1,3 @@
-import { NS } from "netscript";
-
 import { contract } from "/bin/cct.js"
 
 export function autocomplete(data: any, args: any) { return data.servers; }

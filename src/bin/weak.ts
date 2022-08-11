@@ -1,5 +1,3 @@
-import { NS } from "netscript";
-
 export async function main(ns: NS) {
     ns.disableLog("ALL");
     try {
@@ -11,7 +9,7 @@ export async function main(ns: NS) {
             forever = true;
         } else {
             while (begin > performance.now()) {
-                await ns.asleep(begin - performance.now());
+                await ns.sleep(begin - performance.now());
             }
         }
         

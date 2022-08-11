@@ -1,5 +1,3 @@
-import { NS, BasicHGWOptions } from "netscript";
-
 export async function main(ns: NS) {
     ns.disableLog("ALL");
     try {
@@ -11,11 +9,11 @@ export async function main(ns: NS) {
             forever = true;
         } else {
             while (begin > performance.now()) {
-                await ns.asleep(begin - performance.now());
+                await ns.sleep(begin - performance.now());
             }
         }
         
-        const opts: BasicHGWOptions = {};
+        const opts: Parameters<NS["grow"]>[1] = {};
         const symbol   = sfh?.network?.[target]?.symbol;
         const forecast = symbol ? sfh.trading.stocks[symbol]?.forecast : null;
         if (symbol != null && forecast != null) { opts.stock = (forecast >= 0.5); }

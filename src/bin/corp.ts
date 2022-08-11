@@ -1,15 +1,90 @@
-import { NS } from "netscript";
-import * as S from "sfh";
+export function calcMaterialsBase(industry: string, inventory: number) {
+    const names = ["Hardware", "Robots", "AI Cores", "Real Estate"];
+    const size  = [0.06, 0.5, 0.1, 0.005];
+    const permutations = [
+        [1, 1, 1, 1],
+        [0, 1, 1, 1],
+        [1, 0, 1, 1],
+        [1, 1, 0, 1],
+        [1, 1, 1, 0],
+        [0, 0, 1, 1],
+        [0, 1, 0, 1],
+        [0, 1, 1, 0],
+        [1, 0, 0, 1],
+        [1, 0, 1, 0],
+        [1, 1, 0, 0],
+        [0, 0, 0, 1],
+        [0, 0, 1, 0],
+        [0, 1, 0, 0],
+        [1, 0, 0, 0],
+    ];
 
-import { calcMaterials as calcMaterialsBase } from "/util/materials.js";
+    let pows: [number, number, number, number];
+    switch (industry.toLowerCase()) {
+        case "energy":         { pows = [0.00, 0.05, 0.30, 0.65]; } break;
+        case "utilities":      { pows = [0.00, 0.40, 0.40, 0.50]; } break;
+        case "agriculture":    { pows = [0.20, 0.30, 0.30, 0.72]; } break;
+        case "fishing":        { pows = [0.35, 0.50, 0.20, 0.15]; } break;
+        case "mining":         { pows = [0.40, 0.45, 0.45, 0.30]; } break;
+        case "food":           { pows = [0.15, 0.30, 0.25, 0.05]; } break;
+        case "tobacco":        { pows = [0.15, 0.20, 0.15, 0.15]; } break;
+        case "chemical":       { pows = [0.20, 0.25, 0.20, 0.25]; } break;
+        case "pharmaceutical": { pows = [0.15, 0.25, 0.20, 0.05]; } break;
+        case "computer":       { pows = [0.00, 0.36, 0.19, 0.20]; } break;
+        case "robotics":       { pows = [0.19, 0.00, 0.36, 0.32]; } break;
+        case "software":       { pows = [0.25, 0.05, 0.18, 0.15]; } break;
+        case "healthcare":     { pows = [0.10, 0.10, 0.10, 0.10]; } break;
+        case "realestate":
+        case "real estate":    { pows = [0.05, 0.60, 0.60, 0.00]; } break;
+        default: { return null; }
+    }
 
-let C: NS["corporation"];
-let log: (s: string) => unknown;
+    let psum = pows[0] + pows[1] + pows[2] + pows[3];
 
-const sleep        = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const ret = {
+        "Hardware":    0,
+        "Robots":      0,
+        "AI Cores":    0,
+        "Real Estate": 0,
+        multiplier:    1
+    };
+
+    for (const perm of permutations) {
+        let psum = 0;
+        let ssum = 0;
+        for (let i = 0; i < 4; ++i) {
+            psum += pows[i] * perm[i];
+            ssum += size[i] * perm[i];
+        }
+
+        let x = [0, 0, 0, 0];
+        for (let i = 0; i < 4; ++i) {
+            x[i] = perm[i] * ((pows[i] * (500 * ssum + inventory)) / (size[i] * psum) - 500);
+        }
+
+        if (x[0] < 0 || x[1] < 0 || x[2] < 0 || x[3] < 0) { continue; }
+
+        const mult = Math.pow((1 + x[0] / 500), pows[0] * 0.73)
+                   * Math.pow((1 + x[1] / 500), pows[1] * 0.73)
+                   * Math.pow((1 + x[2] / 500), pows[2] * 0.73)
+                   * Math.pow((1 + x[3] / 500), pows[3] * 0.73)
+
+        if (mult > ret.multiplier) {
+            ret.multiplier = mult;
+            for (let i = 0; i < 4; ++i) { ret[names[i] as keyof typeof ret] = x[i]; }
+        }
+    }
+
+    return ret;
+}
+
+let C:     NS["corporation"];
+let sleep: (ms: number) => Promise<unknown>;
+let log:   (s:  string) => unknown;
+
 const productName  = (i: number | string): string => `${Number(i).toFixed(0).padStart(3, "0")}`;
 const productIndex = (s: string): number => parseInt(s, 10);
-const cities: S.City[] = ["Sector-12", "Aevum", "Chongqing", "New Tokyo", "Ishima", "Volhaven"];
+const cities: City[] = ["Sector-12", "Aevum", "Chongqing", "New Tokyo", "Ishima", "Volhaven"];
 
 const str = {
     adv: "Wilson Analytics",
@@ -78,7 +153,7 @@ const extra_divs: [string, number][] = [
 function setWait(new_ticks: number) { sfh.corp.wait_ticks = Math.max(sfh.corp.wait_ticks, new_ticks); }
 
 const cm_cache: ReturnType<typeof calcMaterialsBase>[] = [];
-function calcMaterials(city: S.City, volume: number) {
+function calcMaterials(city: City, volume: number) {
     if (cm_cache[volume] == null) { cm_cache[volume] = calcMaterialsBase("Agriculture", volume); }
     return cm_cache[volume]!;
 }
@@ -365,9 +440,10 @@ function manageProducts() {
     }
 }
 
-export async function runCorp(_C: NS["corporation"], _log?: (str: string) => any) {
-    C = _C;
-    log = (_log ? _log : function (str: string) { return undefined; });
+export async function runCorp(_C: typeof C, _slp?: typeof sleep, _log?: typeof log) {
+    C     = _C;
+    sleep = (_slp ? _slp : function (ms:  number) { return new Promise(resolve => setTimeout(resolve, ms)); });
+    log   = (_log ? _log : function (str: string) { return undefined; });
 
     if (C.getCorporation().divisions.length === 0) { await startup(); }
 
@@ -386,7 +462,6 @@ export async function runCorp(_C: NS["corporation"], _log?: (str: string) => any
     sfh.corp.funds  = init_corp.funds;
     sfh.corp.profit = init_corp.revenue - init_corp.expenses;
 
-
     for (const division of init_corp.divisions) { sfh.corp.divisions.add(division.name); }
 
     if (sfh.corp.divisions.has("T")) {
@@ -401,7 +476,7 @@ export async function runCorp(_C: NS["corporation"], _log?: (str: string) => any
     if (sfh.corp.round > 3 && !sfh.corp.public) { C.goPublic(0); sfh.corp.public = true; }
     if (sfh.corp.public) {
         const share_frac = init_corp.numShares / init_corp.totalShares;
-        let dividend_tax = sfh.player.bitnode.corp_dividends - 0.15;
+        let dividend_tax = sfh.player.mult.corp_dividends - 0.15;
         if (C.hasUnlockUpgrade(str.dv1)) { dividend_tax += 0.05; }
         if (C.hasUnlockUpgrade(str.dv2)) { dividend_tax += 0.10; }
 
@@ -426,20 +501,22 @@ export async function runCorp(_C: NS["corporation"], _log?: (str: string) => any
         sfh.corp.dividends = 0;
     }
 
-    for (const city of cities) {
-        C.sellMaterial("A", city, "Water",  (C.getMaterial("A", city, "Water" ).qty > 0.1 ? "MAX" : "0"), "0");
-        C.sellMaterial("A", city, "Energy", (C.getMaterial("A", city, "Energy").qty > 0.1 ? "MAX" : "0"), "0");
-        C.sellMaterial("A", city, "Food",   "MAX", "MP");
-        C.sellMaterial("A", city, "Plants", "MAX", "MP");
+    if (sfh.corp.divisions.has("A")) {
+        for (const city of cities) {
+            C.sellMaterial("A", city, "Water",  (C.getMaterial("A", city, "Water" ).qty > 0.1 ? "MAX" : "0"), "0");
+            C.sellMaterial("A", city, "Energy", (C.getMaterial("A", city, "Energy").qty > 0.1 ? "MAX" : "0"), "0");
+            C.sellMaterial("A", city, "Food",   "MAX", "MP");
+            C.sellMaterial("A", city, "Plants", "MAX", "MP");
 
-        const volume = C.getWarehouse("A", city).size * [0.85, 0.8, 0.75, 0.75, 0.75][sfh.corp.round];
-        const mats = calcMaterials(city, volume);
-        for (const mat of [str.har, str.rob, str.aic, str.ree] as (keyof typeof mats)[]) {
-            const qty = C.getMaterial("A", city, mat).qty;
-            const diff = qty - mats[mat];
-            if (Math.abs(diff) / qty > 0.01) { setWait(2); }
-            C.buyMaterial("A", city, mat, (diff < 0 ? -diff / 10 : 0));
-            C.sellMaterial("A", city, mat, (diff > 0 ? String(diff / 10) : "0"), "0");
+            const volume = C.getWarehouse("A", city).size * [0.85, 0.8, 0.75, 0.75, 0.75][sfh.corp.round];
+            const mats = calcMaterials(city, volume);
+            for (const mat of [str.har, str.rob, str.aic, str.ree] as (keyof typeof mats)[]) {
+                const qty = C.getMaterial("A", city, mat).qty;
+                const diff = qty - mats[mat];
+                if (Math.abs(diff) / qty > 0.01) { setWait(2); }
+                C.buyMaterial("A", city, mat, (diff < 0 ? -diff / 10 : 0));
+                C.sellMaterial("A", city, mat, (diff > 0 ? String(diff / 10) : "0"), "0");
+            }
         }
     }
 
@@ -492,10 +569,14 @@ export async function runCorp(_C: NS["corporation"], _log?: (str: string) => any
                 }
             },
             purchase: () => C.upgradeOfficeSize(pdiv, city, 3)});
-        purchases.push({ name: city + " warehouse",
-            rank: (pdiv === "A" ? 3 : (city === "Sector-12" ? 100 : 1000)),
-            getCost:  () => C.getUpgradeWarehouseCost(pdiv, city), 
-            purchase: () => C.upgradeWarehouse(pdiv, city)});
+
+        try {
+            C.getUpgradeWarehouseCost(pdiv, city);
+            purchases.push({ name: city + " warehouse",
+                rank: (pdiv === "A" ? 3 : (city === "Sector-12" ? 100 : 1000)),
+                getCost:  () => C.getUpgradeWarehouseCost(pdiv, city), 
+                purchase: () => C.upgradeWarehouse(pdiv, city)});
+        } catch {}
     }
 
     purchases.push({name: "AdVert",
@@ -537,6 +618,8 @@ export async function runCorp(_C: NS["corporation"], _log?: (str: string) => any
     const max_time = ((C as any).getBonusTime() > 10000 ? 0 : 7000);
 
     for (const div of (sfh.corp.public ? ["A", "T"] : ["A"])) {
+        if (!sfh.corp.divisions.has(div)) { continue; }
+
         const division = C.getDivision(div);
         const in_black = C.getCorporation().funds > 0
             && (division.lastCycleRevenue - division.lastCycleExpenses) > 0;
@@ -593,7 +676,7 @@ export async function runCorp(_C: NS["corporation"], _log?: (str: string) => any
                         }
                     }
                 } else {
-                    const min = Math.ceil(employees.length / 30);
+                    const min = Math.floor(employees.length / 30);
                     if      (total[str.ops] < min) { pos = str.ops; }
                     else if (total[str.eng] < min) { pos = str.eng; }
                     else if (total[str.bus] < min) { pos = str.bus; }
@@ -628,7 +711,7 @@ export async function main(ns: NS) {
             if (sfh.can.purchase && sfh.player.money >= 150e9) {
                 ns.print("Buying corp...");
                 sfh.state.has_corp = ns.corporation.createCorporation("SFH", true);
-            } else if (sfh.player.bitnode.number === 3) {
+            } else if (sfh.bitnode.number === 3) {
                 ns.print("Starting corp with seed money...");
                 sfh.state.has_corp = ns.corporation.createCorporation("SFH", false);
 
@@ -642,17 +725,17 @@ export async function main(ns: NS) {
         }
 
         ns.print("Waiting to buy corp...");
-        await ns.asleep(10000);
+        await ns.sleep(10000);
     }
 
     ns.print("Entering main corp loop");
     for (;;) {
         while (!sfh.can.corp) {
             ns.print("Waiting for corp permissions...");
-            await ns.asleep(10000);
+            await ns.sleep(10000);
         }
 
-        await sfh.corpUpdate(ns.corporation, ns.print.bind(ns));
+        await sfh.corpUpdate(ns.corporation, ns.sleep.bind(ns), ns.print.bind(ns));
 
         for (const work of sfh.goal.work) {
             if (!work.org.faction || !work.org.joined) { continue; }
@@ -661,7 +744,7 @@ export async function main(ns: NS) {
             const req_bribe = (work.rep - work.org.rep) * 1e9;
             if (req_bribe > 0 && funds > 10 * req_bribe) {
                 ns.print(`Bribing ${work.org.name}...`);
-                ns.corporation.bribe(work.org.name, req_bribe, 0);
+                ns.corporation.bribe(work.org.name, req_bribe);
             }
         }
 
@@ -672,18 +755,18 @@ export async function main(ns: NS) {
             let req_rep = 0
             for (const aug of data.factions[name].augs) {
                 if (!sfh.state.augs.has(aug) && !sfh.state.augs.queued.has(aug)) {
-                    req_rep = Math.max(req_rep, data.augs[aug].rep * sfh.player.bitnode.aug_rep);
+                    req_rep = Math.max(req_rep, data.augs[aug].rep * sfh.player.mult.aug_rep);
                 }
             }
             
             const funds = ns.corporation.getCorporation().funds;
-            const req_bribe = (req_rep - faction.base_rep) * 1e9;
+            const req_bribe = (req_rep - faction.rep) * 1e9;
             if (req_bribe > 0 && funds > 100 * req_bribe) {
                 ns.print(`Bribing ${name}...`);
-                ns.corporation.bribe(name, req_bribe, 0);
+                ns.corporation.bribe(name, req_bribe);
             } else if (funds > 1e20) {
                 ns.print(`Bribing ${name}...`);
-                ns.corporation.bribe(name, funds / 10000, 0);
+                ns.corporation.bribe(name, funds / 10000);
             }
         }
     }

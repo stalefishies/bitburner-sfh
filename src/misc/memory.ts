@@ -1,6 +1,3 @@
-import { NS } from "netscript";
-import * as S from "sfh";
-
 export async function main(ns: NS) {
     ns.disableLog("ALL");
     sfh.netSort();

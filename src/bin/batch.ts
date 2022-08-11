@@ -1,6 +1,3 @@
-import { NS } from "netscript";
-import * as S from "sfh";
-
 export async function main(ns: NS) {
     ns.disableLog("ALL");
 
@@ -61,7 +58,7 @@ export async function main(ns: NS) {
         const index = batch % job.depth;
 
         const batch_begin = time_begin + batch * job.period;
-        await ns.asleep(batch_begin - performance.now());
+        await ns.sleep(batch_begin - performance.now());
         const batch_lag = performance.now() - batch_begin;
         
         let dispatch = true;
@@ -131,8 +128,8 @@ export async function main(ns: NS) {
         if (ending) {
             job.scripts -= 4;
             dispatch = false;
-        } else if (sfh?.player?.skill != job.skill) {
-            ns.print(ns.sprintf("ERROR: %4d Hacking skill increased to %d", batch, sfh.player.skill));
+        } else if (sfh?.player?.hac != job.skill) {
+            ns.print(ns.sprintf("ERROR: %4d Hacking skill increased to %d", batch, sfh.player.hac));
 
             let end_width = 0;
             for (let offset = 0; offset < kH; ++offset) {

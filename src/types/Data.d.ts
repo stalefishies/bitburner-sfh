@@ -1,5 +1,3 @@
-import { NS } from "netscript";
-
 export type Aug = {
     name     : string;
     cost     : number;

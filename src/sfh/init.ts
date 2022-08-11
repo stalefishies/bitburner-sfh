@@ -1,6 +1,4 @@
-import { NS } from "netscript";
-import * as S from "sfh";
-import SFH from "/sfh/sfh.js";
+import SFH from "/sfh/sfh.js"
 
 type AugSet = { [faction: string]: Iterable<string> };
 const aug_sets: AugSet[] = [{
@@ -111,7 +109,6 @@ const aug_sets: AugSet[] = [{
         "Embedded Netburner Module Analyze Engine",
         "Embedded Netburner Module Direct Memory Access Upgrade",
         "Embedded Netburner Module Core V3 Upgrade",
-        "Hydroflame Left Arm"
     ])
 }, {
     "Clarke Incorporated": new Set([
@@ -132,7 +129,7 @@ export async function main(ns: NS) {
     let player = ns.getPlayer();
     let reset = (ns.args.length == 2 && ns.args[0] == "sfh" && ns.args[1] == "reset")
         || !globalThis.sfh?.player || sfh.reset
-        || sfh.player.aug_time > player.playtimeSinceLastAug;
+        || sfh.time?.reset > player.playtimeSinceLastAug;
     if (!reset) { globalThis.sfh = new SFH(globalThis.sfh); return; }
 
     if (globalThis.sfh != null && sfh.procs?.set != null) {
@@ -143,8 +140,8 @@ export async function main(ns: NS) {
     }
 
     // setup what SFH is allowed to do on its own
-    const permissions = (globalThis.sfh?.can as S.Permissions | null) ?? {
-        bitnode:   false, install:   true,
+    const permissions = globalThis.sfh?.can ?? {
+        bitnode:   true,  install:   true,
         scripts:   true,  purchase:  true,
         hacking:   true,  batching:  true,
         trading:   true,  hnet:      true,
@@ -154,81 +151,123 @@ export async function main(ns: NS) {
 
     globalThis.sfh = new SFH({
         can:     permissions,
-        bb:      {} as S.Bitburner,
-        ui:      {} as S.UI,
-        time:    { now: 0, perf: {} },
-        player:  {} as S.Player,
-        state:   {} as S.State,
-        money:   {} as S.Money,
+        x:       {} as typeof sfh.x,
+        ui:      {} as typeof sfh.ui,
+        time:    { now: 0, reset: player.playtimeSinceLastAug,
+            bitnode: player.playtimeSinceLastBitnode, total: player.totalPlaytime },
+        bitnode: {} as typeof sfh.bitnode,
+        player:  {} as typeof sfh.player,
+        state:   {} as typeof sfh.state,
+        money:   {} as typeof sfh.money,
         goal:    { type: null, desc: "", money: 0, money_next: 0, money_total: 0,
             augs: [], work: [], orgs: new Set(),
-            skill: 0, cha: 0, combat: 0, karma: 0,
+            hac: 0, str: 0, def: 0, dex: 0, agi: 0, cha: 0, int: 0,
             corp: false, corp_ticks: 0 },
         network: {},
-        procs:   { set: new Set(), pools: [], home: null, corp: null, sharing: new Set(), exp: new Set(),
+        procs:   { set: new Set(), pools: [], home: null, corp: null,
+            sharing: new Set(), exp: new Set(), stanek: new Set(),
             backdoor: null, contract: null, total_ram: 0, free_ram: 0, max_ram: 0 },
         hacking: { params: {}, list: [], min_dps: 0, scripts: 0, batch_time: 0, dps: 0, exp: 0 },
         sleeves: { money_rate: 0, karma_rate: 0, skill_rate: 0, str_rate: 0, def_rate: 0, dex_rate: 0, agi_rate: 0, cha_rate: 0, int_rate: 0 },
-        trading: { stocks: {}, list: [], init: false, ready: false, time: 0, dps: 0 },
+        trading: { stocks: {}, list: [], init: false, time: 0, dps: 0,
+            spent: 0, sell: 0, total_spent: 0, total_sold: 0 },
         hnet:    { hashes: 0, capacity: 0, prod: 0, dps: 0 },
-        gang:    { state: "train", name: "none", size: 0, train: 0, time: 0, dps: 0, clash: 0, rep: 0, training: [] },
+        //gang:    { state: "train", name: "none", size: 0, train: 0, time: 0, dps: 0, clash: 0, rep: 0, training: [] },
+        gang:    {} as any,
         corp:    { public: false, wait_ticks: 0, divisions: new Set(), funds: 0, profit: 0,
             round: 0, offer: 0, div_frac: 0, dividends: 0, research: 0, res_rate: 0, products: [] }
     });
     sfh.getBitburnerInternals();
-    sfh.playerUpdate(ns, player);
-    
-    let bitnode = null;
-    try { bitnode = ns.getBitNodeMultipliers(); } catch {}
 
-    if (!sfh.player.bitnode) { sfh.player.bitnode = {} as any; }
-    sfh.player.bitnode.number          = player.bitNodeN;
-    sfh.player.bitnode.agi             = bitnode?.AgilityLevelMultiplier     ?? 1
-    sfh.player.bitnode.aug_cost        = bitnode?.AugmentationMoneyCost      ?? 1
-    sfh.player.bitnode.aug_rep         = bitnode?.AugmentationRepCost        ?? 1
-    sfh.player.bitnode.bb_rank         = bitnode?.BladeburnerRank            ?? 1
-    sfh.player.bitnode.bb_cost         = bitnode?.BladeburnerSkillCost       ?? 1
-    sfh.player.bitnode.cha             = bitnode?.CharismaLevelMultiplier    ?? 1
-    sfh.player.bitnode.class_exp       = bitnode?.ClassGymExpGain            ?? 1
-    sfh.player.bitnode.cct_money       = bitnode?.CodingContractMoney        ?? 1
-    sfh.player.bitnode.company_exp     = bitnode?.CompanyWorkExpGain         ?? 1
-    sfh.player.bitnode.company_money   = bitnode?.CompanyWorkMoney           ?? 1
-    sfh.player.bitnode.corp_dividends  = bitnode?.CorporationSoftcap         ?? 1
-    sfh.player.bitnode.corp_valuation  = bitnode?.CorporationValuation       ?? 1
-    sfh.player.bitnode.crime_exp       = bitnode?.CrimeExpGain               ?? 1
-    sfh.player.bitnode.crime_money     = bitnode?.CrimeMoney                 ?? 1
-    sfh.player.bitnode.daedalus_augs   = bitnode?.DaedalusAugsRequirement    ?? 1
-    sfh.player.bitnode.def             = bitnode?.DefenseLevelMultiplier     ?? 1
-    sfh.player.bitnode.dex             = bitnode?.DexterityLevelMultiplier   ?? 1
-    sfh.player.bitnode.faction_passive = bitnode?.FactionPassiveRepGain      ?? 1
-    sfh.player.bitnode.faction_exp     = bitnode?.FactionWorkExpGain         ?? 1
-    sfh.player.bitnode.faction_rep     = bitnode?.FactionWorkRepGain         ?? 1
-    sfh.player.bitnode.stock_data      = bitnode?.FourSigmaMarketDataApiCost ?? 1
-    sfh.player.bitnode.stock_data_base = bitnode?.FourSigmaMarketDataCost    ?? 1
-    sfh.player.bitnode.gang_softcap    = bitnode?.GangSoftcap                ?? 1
-    sfh.player.bitnode.skill_exp       = bitnode?.HackExpGain                ?? 1
-    sfh.player.bitnode.skill           = bitnode?.HackingLevelMultiplier     ?? 1
-    sfh.player.bitnode.hacknet_prod    = bitnode?.HacknetNodeMoney           ?? 1
-    sfh.player.bitnode.home_cost       = bitnode?.HomeComputerRamCost        ?? 1
-    sfh.player.bitnode.infil_money     = bitnode?.InfiltrationMoney          ?? 1
-    sfh.player.bitnode.infil_rep       = bitnode?.InfiltrationRep            ?? 1
-    sfh.player.bitnode.hack_manual     = bitnode?.ManualHackMoney            ?? 1
-    sfh.player.bitnode.cluster_cost    = bitnode?.PurchasedServerCost        ?? 1
-    sfh.player.bitnode.cluster_count   = bitnode?.PurchasedServerLimit       ?? 1
-    sfh.player.bitnode.cluster_max_ram = bitnode?.PurchasedServerMaxRam      ?? 1
-    sfh.player.bitnode.cluster_softcap = bitnode?.PurchasedServerSoftcap     ?? 1
-    sfh.player.bitnode.faction_favour  = bitnode?.RepToDonateToFaction       ?? 1
-    sfh.player.bitnode.hack_money      = bitnode?.ScriptHackMoney            ?? 1
-    sfh.player.bitnode.hack_profit     = bitnode?.ScriptHackMoneyGain        ?? 1
-    sfh.player.bitnode.grow_rate       = bitnode?.ServerGrowthRate           ?? 1
-    sfh.player.bitnode.node_max_money  = bitnode?.ServerMaxMoney             ?? 1
-    sfh.player.bitnode.node_init_money = bitnode?.ServerStartingMoney        ?? 1
-    sfh.player.bitnode.node_init_level = bitnode?.ServerStartingSecurity     ?? 1
-    sfh.player.bitnode.weak_rate       = bitnode?.ServerWeakenRate           ?? 1
-    sfh.player.bitnode.str             = bitnode?.StrengthLevelMultiplier    ?? 1
-    sfh.player.bitnode.stanek_power    = bitnode?.StaneksGiftPowerMultiplier ?? 1
-    sfh.player.bitnode.stanek_size     = bitnode?.StaneksGiftExtraSize       ?? 1
-    sfh.player.bitnode.world_daemon    = bitnode?.WorldDaemonDifficulty      ?? 1
+    let bn = null;
+    try { bn = ns.getBitNodeMultipliers(); } catch {}
+
+    sfh.bitnode = {
+        number: player.bitNodeN,
+        sf:     Array(20).fill(0),
+        mult: {
+            hac:             bn?.HackingLevelMultiplier     ?? 1,
+            str:             bn?.StrengthLevelMultiplier    ?? 1,
+            def:             bn?.DefenseLevelMultiplier     ?? 1,
+            dex:             bn?.DexterityLevelMultiplier   ?? 1,
+            agi:             bn?.AgilityLevelMultiplier     ?? 1,
+            cha:             bn?.CharismaLevelMultiplier    ?? 1,
+            int:                                               1,
+
+            hac_exp:         bn?.HackExpGain                ?? 1,
+            str_exp:                                           1,
+            def_exp:                                           1,
+            dex_exp:                                           1,
+            agi_exp:                                           1,
+            cha_exp:                                           1,
+            int_exp:                                           1,
+
+            hack_money:      bn?.ScriptHackMoney            ?? 1,
+            hack_profit:     bn?.ScriptHackMoneyGain        ?? 1,
+            hack_manual:     bn?.ManualHackMoney            ?? 1,
+            hack_prob:                                         1,
+            hack_time:                                         1,
+            grow_rate:       bn?.ServerGrowthRate           ?? 1,
+            weak_rate:       bn?.ServerWeakenRate           ?? 1,
+
+            max_money:       bn?.ServerMaxMoney             ?? 1,
+            init_money:      bn?.ServerStartingMoney        ?? 1,
+            init_level:      bn?.ServerStartingSecurity     ?? 1,
+
+            aug_cost:        bn?.AugmentationMoneyCost      ?? 1,
+            aug_rep:         bn?.AugmentationRepCost        ?? 1,
+
+            home_cost:       bn?.HomeComputerRamCost        ?? 1,
+            cluster_cost:    bn?.PurchasedServerCost        ?? 1,
+            cluster_count:   bn?.PurchasedServerLimit       ?? 1,
+            cluster_max_ram: bn?.PurchasedServerMaxRam      ?? 1,
+            cluster_softcap: bn?.PurchasedServerSoftcap     ?? 1,
+
+            faction_rep:     bn?.FactionWorkRepGain         ?? 1,
+            faction_exp:     bn?.FactionWorkExpGain         ?? 1,
+            faction_passive: bn?.FactionPassiveRepGain      ?? 1,
+            company_money:   bn?.CompanyWorkMoney           ?? 1,
+            company_rep:                                       1,
+            company_exp:     bn?.CompanyWorkExpGain         ?? 1,
+            crime_money:     bn?.CrimeMoney                 ?? 1,
+            crime_exp:       bn?.CrimeExpGain               ?? 1,
+            crime_prob:                                        1,
+            class_exp:       bn?.ClassGymExpGain            ?? 1,
+
+            contract_money:  bn?.CodingContractMoney        ?? 1,
+            infil_money:     bn?.InfiltrationMoney          ?? 1,
+            infil_rep:       bn?.InfiltrationRep            ?? 1,
+
+            hacknet_prod:    bn?.HacknetNodeMoney           ?? 1,
+            hacknet_node:                                      1,
+            hacknet_level:                                     1,
+            hacknet_ram:                                       1,
+            hacknet_core:                                      1,
+
+            corp_dividends:  bn?.CorporationSoftcap         ?? 1,
+            corp_valuation:  bn?.CorporationValuation       ?? 1,
+            gang_softcap:    bn?.GangSoftcap                ?? 1,
+            stanek_power:    bn?.StaneksGiftPowerMultiplier ?? 1,
+
+            bb_sta:                                            1,
+            bb_sta_gain:                                       1,
+            bb_analysis:                                       1,
+            bb_prob:                                           1,
+            bb_rank:         bn?.BladeburnerRank            ?? 1,
+            bb_cost:         bn?.BladeburnerSkillCost       ?? 1,
+        },
+
+        donation:      150  * (bn?.RepToDonateToFaction       ??  1),
+        stock_4S_base: 1e9  * (bn?.FourSigmaMarketDataCost    ??  1),
+        stock_4S_api:  25e9 * (bn?.FourSigmaMarketDataApiCost ??  1),
+        gang_augs:            ((bn as any)?.GangUniqueAugs    ??  1),
+        stanek_size:          (bn?.StaneksGiftExtraSize       ??  0),
+        daedalus_augs:        (bn?.DaedalusAugsRequirement    ?? 30),
+        world_daemon:  3000 * (bn?.WorldDaemonDifficulty      ??  1)
+    };
+
+    for (const sf of ns.singularity.getOwnedSourceFiles()) { sfh.bitnode.sf[sf.n] = sf.lvl; }
+    sfh.playerUpdate(ns, player);
 
     // Get augmentations
     sfh.state.augs = Object.assign(new Set<string>(), { queued: new Set<string>() });
@@ -255,7 +294,7 @@ export async function main(ns: NS) {
         const favour = ns.singularity.getFactionFavor(faction);
         const joined = player.factions.includes(faction);
         sfh.state.factions[faction] = { name: faction, faction: true, joined, finished: false,
-            favour, base_rep: 0, rep: 0 };
+            augs: new Set(), favour, rep: 0 };
        
         const hostname = data.factions[faction].server;
         if (hostname) { sfh.state.factions[faction].node = sfh.network[hostname]; }
@@ -265,7 +304,7 @@ export async function main(ns: NS) {
             const joined  = company in player.jobs;
             const favour  = ns.singularity.getCompanyFavor(company);
             sfh.state.companies[company] = { name: company, faction: false, joined, finished: false,
-                favour, base_rep: 0, rep: 0 };
+                augs: new Set(), favour, rep: 0 };
 
             if (hostname) { sfh.state.companies[company].node = sfh.network[hostname]; }
 
@@ -275,39 +314,29 @@ export async function main(ns: NS) {
     }
 
     sfh.state.work = null;
-    sfh.state.city = null as any;
     sfh.state.goto = null;
-    sfh.state.continent = "America";
+    sfh.state.city = player.city as City;
+    sfh.state.continent = null;
 
-    sfh.state.skill_rate = 0;
-    sfh.state.skill_time = 0;
+    sfh.state.hac_rate = 0;
+    sfh.state.hac_time = 0;
     sfh.state.money_rate = 0;
     sfh.state.money_time = 0;
 
-    const all_augs = new Set<{ org: S.Org, name: string }>();
+    const all_augs = new Set<{ org: Org, name: string }>();
     for (const set of aug_sets) {
         for (const faction in set) {
             const faction_reqs = data.factions[faction].reqs;
-            if ("combat" in faction_reqs || "karma" in faction_reqs) { continue; }
 
             switch (faction_reqs.special) {
                 case null:      break;
                 case undefined: break;
 
                 case "daedalus": {
-                    const augs_req = Math.round(30 * sfh.player.bitnode.daedalus_augs);
-                    if (sfh.state.augs.size < augs_req) { continue; }
+                    if (sfh.state.augs.size < sfh.bitnode.daedalus_augs) { continue; }
                 } break;
 
                 default: continue;
-            }
-
-            if (faction === "Sector-12" || faction === "Aevum") {
-                sfh.state.continent = "America";
-            } else if (faction === "Volhaven") {
-                sfh.state.continent = "Europe";
-            } else if (faction === "Chongqing" || faction === "New Tokyo" || faction === "Ishima") {
-                sfh.state.continent = "Asia";
             }
 
             let max_rep = 0;
@@ -321,7 +350,7 @@ export async function main(ns: NS) {
                     sfh.state.have_goal = true;
                     if (!sfh.state.augs.queued.has(aug)) {
                         this_augs.push(aug);
-                        max_rep = Math.max(max_rep, data.augs[aug].rep * sfh.player.bitnode.aug_rep);
+                        max_rep = Math.max(max_rep, data.augs[aug].rep * sfh.player.mult.aug_rep);
                     }
                 }
             }
@@ -342,12 +371,10 @@ export async function main(ns: NS) {
                 }
             }
 
-            const favour_donate = 150 * sfh.player.bitnode.faction_favour;
-
-            if (sfh.state.factions[faction].favour >= favour_donate) {
+            if (sfh.state.factions[faction].favour >= sfh.bitnode.donation) {
                 sfh.goal.work.push({ org: sfh.state.factions[faction], rep: max_rep });
             } else {
-                const don_rep = 25000 * (1.02 ** favour_donate - 1);
+                const don_rep = 25000 * (1.02 ** sfh.bitnode.donation - 1);
                 const cur_rep = 25000 * (1.02 ** sfh.state.factions[faction].favour - 1);
 
                 if (max_rep < don_rep - cur_rep) {
@@ -377,15 +404,7 @@ export async function main(ns: NS) {
         if (sfh.state.have_goal) { break; }
     }
 
-    // TODO: use default_exp, scaled by home RAM
-    const default_exp = 5e6 * sfh.player.skill_exp_mult * sfh.player.bitnode.skill_exp;
-
-    for (const { org } of (sfh.goal.augs as { org: S.Org }[]).concat(sfh.goal.work)) {
-        const reqs = data.factions[org.name].reqs;
-        sfh.goal.skill = Math.max(sfh.goal.skill, reqs.hacking ?? 0);
-        sfh.goal.skill = Math.max(sfh.goal.skill, sfh.network[reqs.backdoor ?? ""]?.skill ?? 0);
-        sfh.goal.skill = Math.max(sfh.goal.skill, reqs.special === "daedalus" ? 2500 : 0);
-    }
+    sfh.goalSort();
 
     sfh.money.curr  = player.money;
     sfh.money.total = player.money;
@@ -393,21 +412,20 @@ export async function main(ns: NS) {
     sfh.money.spent = {} as any;
     sfh.money.can_train = false;
 
-    const money_fracs: { [type in S.MoneyType]: number } = {
-        goal:    Number.POSITIVE_INFINITY,
-        home:    0.25,
-        cores:   0.01,
+    const money_fracs: typeof sfh.money.frac = {
+        goal:    (sfh.bitnode.number === 8 ? 0.05 : Number.POSITIVE_INFINITY),
+        upgrade: (sfh.bitnode.number === 8 ? 0.01 : 0.25),
         program: 0.001,
-        cluster: 0.15,
-        hacknet: 0.1,
-        stocks:  0.1,
+        cluster: (sfh.bitnode.number === 8 ? 0.01 : 0.15),
+        hacknet: Math.min(sfh.player.mult.hacknet_prod, 1) * 0.1,
+        stocks:  (sfh.bitnode.number === 8 ? 0.75 : 0.05),
+        gang:    Math.min(sfh.player.mult.gang_softcap, 1) * 0.05,
     };
 
-    for (const type of (Object.keys(money_fracs) as S.MoneyType[])) {
+    for (const type of (Object.keys(money_fracs) as (keyof typeof money_fracs)[])) {
         sfh.money.frac[type]  = money_fracs[type];
         sfh.money.spent[type] = 0;
     }
 
-    sfh.goalSort();
     sfh.uiCreate(ns);
 }

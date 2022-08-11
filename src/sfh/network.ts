@@ -1,7 +1,3 @@
-import { NS } from "netscript";
-import * as S from "sfh";
-import { fmtm, fmtr } from "/sfh/lib.js";
-
 const cluster_name = (i: number): string => `sfh-${i.toFixed(0).padStart(2, "0")}`;
 const script_cache: { [key: string]: string } = {};
 const backdoor_names = new Set<string>();
@@ -64,7 +60,7 @@ export async function sfhMain(ns: NS) {
         node.cores     = server.cpuCores;
 
         node.tH = 5000 * (2.5 * node.skill * node.level + 500)
-            / ((sfh.player.skill + 50) * sfh.player.time_mult * sfh.player.int_mult(1));
+            / ((sfh.player.hac + 50) * sfh.player.mult.hack_time * sfh.intMult(1));
         node.tG = 3.2 * node.tH;
         node.tW = 4.0 * node.tH;
     }
@@ -87,14 +83,14 @@ export async function sfhMain(ns: NS) {
         }
 
         if (!node.target) {
-            node.target = !node.owned && node.money > 0 && node.root && sfh.player.skill >= node.skill;
+            node.target = !node.owned && node.money > 0 && node.root && sfh.player.hac >= node.skill;
         }
     }
 
     const home_scripts = new Set(ns.ls("home", "/bin/"));
     const changed_scripts = [];
     for (const script of home_scripts) {
-        const script_data = ns.read(script);
+        const script_data = ns.read(script) as string;
         if (script_data != "" && (script_cache[script] == null || script_cache[script] != script_data)) {
             script_cache[script] = script_data;
             changed_scripts.push(script);
@@ -114,7 +110,7 @@ export async function sfhMain(ns: NS) {
             if (!pool_scripts.has(script)) { copy_scripts.push(script); }
         }
 
-        if (copy_scripts.length > 0) { await ns.scp(copy_scripts, "home", pool.name); }
+        if (copy_scripts.length > 0) { await ns.scp(copy_scripts, pool.name, "home"); }
     }
 
     sfh.netGC(ns.isRunning.bind(ns));
@@ -126,12 +122,12 @@ export async function main(ns: NS) {
 
     switch (ns.args[0]) {
         case undefined: {
-            const dfs = function(node: S.Node) {
-                if (node.owned && node.name !== "home") { return; }
-                ns.tprintf("%s[%4d %s%s%s] %s", "| ".repeat(node.depth), node.skill,
-                    (node.root ? "R" : "_"), (node.target ? "T" : "_"), (node.backdoor ? "B" : "_"), node.name);
-                for (let edge of node.edges) {
-                    if (sfh.network[edge].depth > node.depth) { dfs(sfh.network[edge]); }
+            const dfs = function(server: Server) {
+                if (server.owned && server.name !== "home") { return; }
+                ns.tprintf("%s[%4d %s%s%s] %s", "| ".repeat(server.depth), server.skill,
+                    (server.root ? "R" : "_"), (server.target ? "T" : "_"), (server.backdoor ? "B" : "_"), server.name);
+                for (let edge of server.edges) {
+                    if (sfh.network[edge].depth > server.depth) { dfs(sfh.network[edge]); }
                 }
             }
             dfs(sfh.network.home);
@@ -155,7 +151,7 @@ export async function main(ns: NS) {
             for (let i = 0; i < count; ++i) {
                 const node = cluster[i];
                 line_1.push("  " + node.name + "   ");
-                line_2.push(ns.sprintf("%11s", fmtr(node.ram)));
+                line_2.push(sfh.format("{0,r}", node.ram));
                 if (i % 5 == 4 || i == count - 1) {
                     ns.tprintf("%s\n%s", line_1.join("   "), line_2.join("   "));
                     line_1 = [];
@@ -167,7 +163,7 @@ export async function main(ns: NS) {
         case "cost":
         case "price": {
             for (let ram = 1; ram <= ns.getPurchasedServerMaxRam(); ram *= 2) {
-                ns.tprintf("%11s %11s", fmtr(ram), fmtm(ns.getPurchasedServerCost(ram)));
+                sfh.print("{0,r} {0,m}", ram, ns.getPurchasedServerCost(ram));
             }
         } break;
     }

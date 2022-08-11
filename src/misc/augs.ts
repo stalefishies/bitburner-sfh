@@ -1,6 +1,3 @@
-import { NS } from "netscript";
-import * as S from "sfh";
-
 /*
 function augIsHacking(name, aug) {
     if (name === "NeuroFlux Governor") { return false; }
@@ -121,7 +118,9 @@ export async function main(ns: NS) {
 
         const augs = faction.augs.map(s => data.augs[s]);
         for (const aug of augs) {
-            sfh.print("    {54} {0,m} {0,e}", aug.name, aug.cost, aug.rep);
+            const uniq = (aug.factions.length === 1 ? "!" : " ");
+            const have = (sfh.state.augs.has(aug.name) ? "#" : (sfh.state.augs.queued.has(aug.name) ? "Q" : " "));
+            sfh.print("    {54} {1} {1} {0,m} {0,e}", aug.name, uniq, have, aug.cost, aug.rep);
         }
     }
 }

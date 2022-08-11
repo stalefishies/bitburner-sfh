@@ -1,5 +1,3 @@
-import { NS } from "netscript";
-
 const names = ["Hardware", "Robots", "AI Cores", "Real Estate"];
 const size  = [0.06, 0.5, 0.1, 0.005];
 

@@ -1,5 +1,3 @@
-import { NS } from "netscript";
-
 //const props = div[Object.keys(div)[1]];
 //if (props?.children?.props?.[name]) {
 //    this.bb[name] = props.children.props[name];

@@ -19,14 +19,14 @@ ehthumbs.db
 Thumbs.db
 
 # Ignore compiled output
-dist/**/*
+dist
 
-# Ignore bitburner game folder
-bitburner
-bitburner/**/*
+# Ignore clones of bitburner repo
+game
+dev
 
 # Ignore save backup folder
-backup/**/*
+backup
 
 # Ignore TODO list
 TODO.txt

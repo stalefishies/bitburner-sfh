@@ -1,7 +1,4 @@
-import { NS } from "netscript";
-import * as S from "sfh";
-
-function bestFactionWork(org: S.Org): string | null {
+function bestFactionWork(org: Org): string | null {
     if (!org.faction || !org.joined || org.name === sfh.gang.name) { return null; }
 
     let desc  = null;
@@ -9,7 +6,7 @@ function bestFactionWork(org: S.Org): string | null {
 
     for (const [name, work] of Object.entries(data.factions[org.name].work)) {
         const rep =
-            work.skill_mult * sfh.player.skill
+            work.skill_mult * sfh.player.hac
             + work.str_mult * sfh.player.str
             + work.def_mult * sfh.player.def
             + work.dex_mult * sfh.player.dex
@@ -28,7 +25,7 @@ function bestFactionWork(org: S.Org): string | null {
     return desc;
 }
 
-function bestCompanyWork(org: S.Org): [string, string] | null {
+function bestCompanyWork(org: Org): [string, string] | null {
     if (org.faction) { return null; }
     const offset = data.companies[org.name].stat_offset;
 
@@ -39,19 +36,19 @@ function bestCompanyWork(org: S.Org): [string, string] | null {
     for (const [this_field, jobs] of Object.entries(data.companies[org.name].fields)) {
         let this_job = null;
         for (let i = 0; i < jobs.length; ++i) {
-            if (   (jobs[i].skill_req > 0 && sfh.player.skill < jobs[i].skill_req + offset)
-                || (jobs[i].str_req   > 0 && sfh.player.str   < jobs[i].str_req   + offset)
-                || (jobs[i].def_req   > 0 && sfh.player.def   < jobs[i].def_req   + offset)
-                || (jobs[i].dex_req   > 0 && sfh.player.dex   < jobs[i].dex_req   + offset)
-                || (jobs[i].agi_req   > 0 && sfh.player.agi   < jobs[i].agi_req   + offset)
-                || (jobs[i].cha_req   > 0 && sfh.player.cha   < jobs[i].cha_req   + offset)
+            if (   (jobs[i].skill_req > 0 && sfh.player.hac < jobs[i].skill_req + offset)
+                || (jobs[i].str_req   > 0 && sfh.player.str < jobs[i].str_req   + offset)
+                || (jobs[i].def_req   > 0 && sfh.player.def < jobs[i].def_req   + offset)
+                || (jobs[i].dex_req   > 0 && sfh.player.dex < jobs[i].dex_req   + offset)
+                || (jobs[i].agi_req   > 0 && sfh.player.agi < jobs[i].agi_req   + offset)
+                || (jobs[i].cha_req   > 0 && sfh.player.cha < jobs[i].cha_req   + offset)
                 || org.rep < jobs[i].rep_req) { break; }
             this_job = jobs[i];
         }
 
         if (this_job != null) {
             const rep =
-                this_job.skill_mult * sfh.player.skill
+                this_job.skill_mult * sfh.player.hac
                 + this_job.str_mult * sfh.player.str
                 + this_job.def_mult * sfh.player.def
                 + this_job.dex_mult * sfh.player.dex
@@ -76,7 +73,7 @@ function bestCompanyWork(org: S.Org): [string, string] | null {
 }
 
 export async function main(ns: NS) {
-    sfh.workUpdate(ns.getPlayer.bind(ns), ns.singularity.isFocused.bind(ns));
+    sfh.workUpdate(ns.singularity.getCurrentWork.bind(ns), ns.singularity.isFocused.bind(ns));
 
     // Stop goal work when we're done
     if (sfh.can.working && sfh.state.work?.goal && sfh.state.work.org) {
@@ -92,7 +89,6 @@ export async function main(ns: NS) {
 
         if (org.rep >= goal_rep) {
             ns.singularity.stopAction();
-            org.base_rep = org.rep;
             sfh.state.work = null;
         }
     }
@@ -128,36 +124,36 @@ export async function main(ns: NS) {
 
         // Create programs
         if (!work) {
-            if (!sfh.state.has_brutessh && sfh.player.skill + sfh.player.int / 2 >= 50) {
+            if (!sfh.state.has_brutessh && sfh.player.hac + sfh.player.int / 2 >= 50) {
                 work = { type: "program", org: null, desc: "BruteSSH.exe", goal: true }
             }
         }
 
         // Raise stats
         if (!work && sfh.money.can_train) {
-            if (sfh.goal.skill > sfh.player.skill || sfh.goal.cha > sfh.player.cha) {
+            if (sfh.goal.hac > sfh.player.hac || sfh.goal.cha > sfh.player.cha) {
                 if (sfh.state.city === "Volhaven") {
                     let desc = "Leadership";
-                    if (sfh.goal.skill > sfh.player.skill) { desc = "Algorithms"; }
+                    if (sfh.goal.hac > sfh.player.hac) { desc = "Algorithms"; }
 
                     work = { type: "university", org: null, desc, goal: true }
                     if (sfh.state.goto?.desc === "work") { sfh.state.goto = null; }
                 } else if (!sfh.state.goto) {
-                    sfh.state.goto = { city: "Volhaven", desc: "work" };
+                    sfh.state.goto = { city: "Volhaven", type: "work", desc: "university" };
                 }
-            } else if (sfh.goal.combat > sfh.player.str || sfh.goal.combat > sfh.player.def
-                || sfh.goal.combat > sfh.player.dex || sfh.goal.combat > sfh.player.agi)
+            } else if (sfh.goal.str > sfh.player.str || sfh.goal.def > sfh.player.def
+                || sfh.goal.dex > sfh.player.dex || sfh.goal.agi > sfh.player.agi)
             {
                 if (sfh.state.city === "Sector-12") {
                     let desc = "Agility";
-                    if      (sfh.goal.combat > sfh.player.str) { desc = "Strength";  }
-                    else if (sfh.goal.combat > sfh.player.def) { desc = "Defense";   }
-                    else if (sfh.goal.combat > sfh.player.dex) { desc = "Dexterity"; }
+                    if      (sfh.goal.str > sfh.player.str) { desc = "Strength";  }
+                    else if (sfh.goal.def > sfh.player.def) { desc = "Defense";   }
+                    else if (sfh.goal.dex > sfh.player.dex) { desc = "Dexterity"; }
 
                     work = { type: "gym", org: null, desc, goal: true }
                     if (sfh.state.goto?.desc === "work") { sfh.state.goto = null; }
                 } else if (!sfh.state.goto) {
-                    sfh.state.goto = { city: "Sector-12", desc: "work" };
+                    sfh.state.goto = { city: "Sector-12", type: "work", desc: "gym" };
                 }
             }
         }
@@ -165,15 +161,19 @@ export async function main(ns: NS) {
         // Goal work
         if (!work) {
             for (const goal of sfh.goal.work) {
-                if (sfh.state.work?.org?.name === goal.org.name
-                    && goal.org.rep >= goal.rep && goal.org.base_rep < goal.rep)
-                {
+                if (sfh.state.work?.org?.name === goal.org.name && goal.org.rep >= goal.rep) {
                     ns.singularity.stopAction();
-                    goal.org.base_rep = goal.org.rep;
                     sfh.state.work = null;
                 }
 
-                if (goal.org.base_rep >= goal.rep) { continue; }
+                if (goal.org.rep >= goal.rep) { 
+                    if (sfh.state.work?.org?.name === goal.org.name) {
+                        ns.singularity.stopAction();
+                        sfh.state.work = null;
+                    }
+
+                    continue;
+                }
 
                 if (goal.org.faction) {
                     let desc = bestFactionWork(goal.org);
@@ -199,8 +199,11 @@ export async function main(ns: NS) {
 
             for (const company of Object.values(sfh.state.companies)) {
                 if (company.name == "Fulcrum Technologies" && !sfh.network.fulcrumassets.backdoor) { continue; }
+                if (company.dual == null) { continue; }
 
-                if (!company.finished && (org == null || company.favour < org.favour)) {
+                if (!company.finished && company.rep < (data.factions[company.dual].reqs.company ?? 0)
+                    && (org == null || company.favour < org.favour))
+                {
                     let best = bestCompanyWork(company);
                     if (best) {
                         org   = company;
@@ -256,9 +259,9 @@ export async function main(ns: NS) {
                     ns.singularity.gymWorkout("Powerhouse Gym", desc, focus);
                 }
             }
-        }
+        } else { ns.singularity.stopAction(); }
     }
 
-    if (sfh.state.goto?.desc === "work" && sfh.state.city === sfh.state.goto.city) { sfh.state.goto = null; }
-    sfh.workUpdate(ns.getPlayer.bind(ns), ns.singularity.isFocused.bind(ns));
+    if (sfh.state.goto?.type === "work" && sfh.state.city === sfh.state.goto.city) { sfh.state.goto = null; }
+    sfh.workUpdate(ns.singularity.getCurrentWork.bind(ns), ns.singularity.isFocused.bind(ns));
 }

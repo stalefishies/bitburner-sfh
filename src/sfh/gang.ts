@@ -1,5 +1,17 @@
-import { NS } from "netscript";
-import * as S from "sfh";
+const equipment = {
+    "Weapon": ["Baseball Bat", "Katana", "Glock 18C", "P90C", "Steyr AUG",
+        "AK-47", "M15A10 Assault Rifle", "AWM Sniper Rifle"],
+    "Armor": ["Bulletproof Vest", "Full Body Armor", "Liquid Body Armor", "Graphene Plating Armor"],
+    "Vehicle": ["Ford Flex V20", "ATX1070 Superbike", "Mercedes-Benz S9001", "White Ferrari"],
+    "Rootkit": ["NUKE Rootkit", "Soulstealer Rootkit", "Hmap Node", "Demon Rootkit", "Jack the Ripper"],
+    "Augmentation": ["BitWire", "DataJack", "Bionic Arms", "Bionic Legs",
+        "Neuralstimulator", "Nanofiber Weave", "Bionic Spine", "Synfibril Muscle",
+        "BrachiBlades", "Synthetic Heart", "Graphene Bone Lacings"]
+};
+
+const augs = ["Bionic Arms", "Bionic Legs", "Bionic Spine", "BrachiBlades",
+    "Nanofiber Weave", "Synthetic Heart", "Synfibril Muscle", "BitWire",
+    "Neuralstimulator", "DataJack", "Graphene Bone Lacings"];
 
 function optimiseTasks(ns: NS, tasks: string[], info: ReturnType<NS["gang"]["getGangInformation"]>) {
     const formula = sfh.gang.state === "respect" ? "respectGain" : "moneyGain";
@@ -53,21 +65,26 @@ function optimiseTasks(ns: NS, tasks: string[], info: ReturnType<NS["gang"]["get
     return 5 * rate;
 }
 
+const train_time = 1000 * 60;
+const rep_time   = 1000 * 60 * 5;
+const res_time   = 1000 * 60 * 15;
+const power_time = 1000 * 60 * 30;
+
 async function sfhMain(ns: NS) {
     if (!sfh.state.has_gang || !sfh.state.has_formulas) { return; }
-    while (ns.gang.recruitMember(ns.gang.getMemberNames().length.toFixed(0)));
+    while (ns.gang.recruitMember(ns.gang.getMemberNames().length.toFixed(0))) {
+        sfh.gang.training.push([false, 0, 0, 0]);
+    }
 
     const info = ns.gang.getGangInformation();
     sfh.gang.size = ns.gang.getMemberNames().length;
     sfh.gang.name = info.faction;
     info.wantedLevel = 0; // ignore wanted penalty for calculating times
 
-    const train_ticks = 30;
-    const grind_time  = (sfh.gang.size === 12 ? 120 : 4 * (sfh.gang.size - 2)) * 60 * 1000;
     const tasks = Array(sfh.gang.size).fill("Train Combat");
-    while (sfh.gang.training.length < sfh.gang.size) { sfh.gang.training.push([false, 0, 0, 0]); }
+    while (sfh.gang.training.length < sfh.gang.size) { sfh.gang.training.push([true, 0, 0, 0]); }
 
-    if (sfh.gang.state !== "respect" && sfh.gang.state !== "power") {
+    if (sfh.gang.can_ascend) {
         for (let i = 0; i < sfh.gang.size; ++i) {
             const name   = i.toFixed(0);
             const member = ns.gang.getMemberInformation(name) as any;
@@ -83,7 +100,6 @@ async function sfhMain(ns: NS) {
         }
     }
     
-    if (sfh.gang.state != "train" && sfh.gang.time > grind_time) { sfh.gang.train = train_ticks; }
 
     let max_power = 0;
     const other = ns.gang.getOtherGangInformation();
@@ -94,13 +110,14 @@ async function sfhMain(ns: NS) {
 
     sfh.gang.clash = info.power / (info.power + max_power);
     const power_lo = 2 * max_power;
-    const power_hi = 4 * max_power;
+    const power_hi = 3 * max_power;
     const grind_power = power_hi > 0 && info.power < power_hi;
 
     const train_combat = (info.isHacking ?   0 : 120);
     const train_hack   = (info.isHacking ? 150 :  30);
     const train_cha    = 0;
     for (let i = 0; i < sfh.gang.size; ++i) {
+        sfh.gang.training[i][0] = false;
         if (sfh.gang.training[i][1] < train_combat) {
             tasks[i] = "Train Combat";
         } else if (sfh.gang.training[i][2] < train_hack) {
@@ -112,13 +129,12 @@ async function sfhMain(ns: NS) {
         }
     }
 
-    if (sfh.gang.train > 0) {
+    if (sfh.time.now < sfh.gang.train_time) {
         sfh.gang.state = "train";
-
-        let combat = (info.isHacking ? sfh.gang.size === 12 && grind_power : sfh.gang.train / train_ticks > 0.2);
+        const frac = (sfh.gang.train_time - sfh.time.now) / train_time;
+        
+        let combat = (info.isHacking ? sfh.gang.size === 12 && grind_power : frac > 0.2);
         tasks.fill(combat ? "Train Combat" : "Train Hacking");
-
-        --sfh.gang.train;
     } else {
         let respect = true;
         if (sfh.gang.size === 12) {
@@ -138,12 +154,36 @@ async function sfhMain(ns: NS) {
                 rate *= 0.015 / 95 * Math.max(0.002, info.territory) / 20;
 
                 sfh.gang.time = Math.max(1000 * (power_hi - info.power) / rate, 0);
-            } else if (!sfh.state.has_corp || sfh.state.factions[info.faction].rep >= sfh.gang.rep) {
+            } else if ((!sfh.state.has_corp && sfh.time.reset > 120 * 1000) || sfh.time.reset < 30 * 1000
+                || sfh.state.factions[info.faction].rep >= sfh.gang.rep)
+            {
                 sfh.gang.state = "money";
                 ns.gang.setTerritoryWarfare(info.power > power_lo);
                 const rate = optimiseTasks(ns, tasks, info);
 
                 sfh.gang.time = 200 * sfh.money.curr / rate;
+
+                if (sfh.can.purchase) {
+                    const money = (() => ns.getServerMoneyAvailable("home"));
+                    const order: (keyof typeof equipment)[] = info.isHacking
+                        ? ["Augmentation", "Weapon", "Armor", "Vehicle", "Rootkit"]
+                        : ["Augmentation", "Rootkit", "Weapon", "Armor", "Vehicle"];
+                    const max_cost = rate * 10;
+
+                    for (const type of order) {
+                        for (let n = equipment[type].length - 1; n >= 0; --n) {
+                            const name = equipment[type][n];
+                            const cost = 12 * ns.gang.getEquipmentCost(name);
+                            if (type !== "Augmentation" && cost > max_cost) { continue; }
+
+                            sfh.purchase("gang", money, cost, function() {
+                                for (let i = 0; i < 12; ++i) {
+                                    ns.gang.purchaseEquipment(i.toFixed(0), name);
+                                }
+                            });
+                        }
+                    }
+                }
             } else {
                 respect = true;
             }
@@ -184,7 +224,7 @@ async function sfhMain(ns: NS) {
         for (const name of ns.singularity.getAugmentationsFromFaction(sfh.gang.name)) {
             sfh.gang.rep = Math.max(sfh.gang.rep, data.augs[name].rep);
         }
-        sfh.gang.rep *= sfh.player.bitnode.aug_rep;
+        sfh.gang.rep *= sfh.player.mult.aug_rep;
     }
 }
 
