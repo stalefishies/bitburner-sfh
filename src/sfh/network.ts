@@ -26,95 +26,120 @@ export async function sfhMain(ns: NS) {
         sfh.procs.home = null;
     }
 
-    if (sfh.procs.home == null) {
-        const ram = sfh.network.home.ram = ns.getServer("home").maxRam;
-        const reserve = Math.min(64, ram);
-        
-        if (sfh.network.home.used_ram + reserve > ram) { 
-            throw new Error(`Could not reserve RAM on home (${sfh.network.home.used_ram} + ${reserve} > ${ram})`);
+    const reserve_ram = 64 + (sfh.corp.reserve ? 1024 : 0);
+    if (sfh.procs.home == null || sfh.procs.home.ram < reserve_ram) {
+        const max_ram = sfh.network.home.ram = ns.getServer("home").maxRam;
+
+        if (reserve_ram > max_ram) {
+            throw new Error(`Cannot not reserve ${reserve_ram}GB on home (max ${max_ram}GB)`);
         }
 
-        sfh.network.home.used_ram += reserve;
+        if (sfh.procs.home) {
+            sfh.network.home.used_ram -= sfh.procs.home.ram;
+            sfh.procs.home.alive = false;
+            sfh.procs.set.delete(sfh.procs.home);
+            sfh.procs.home = null;
+        }
+
+        const used_ram = Math.min(reserve_ram, max_ram - sfh.network.home.used_ram);
+        sfh.network.home.used_ram += used_ram;
         sfh.procs.home = {
             pid:     -1,
             alive:   true,
             time:    sfh.time.now,
             script:  "/sfh/main.js",
             host:    "home",
-            ram:     reserve,
+            ram:     used_ram,
             threads: 1
         };
         sfh.procs.set.add(sfh.procs.home);
     }
-    
-    for (const node of sfh.nodes()) {
-        const server   = ns.getServer(node.name);
-        node.ip        = server.ip;
-        node.money     = server.moneyMax;
-        node.level     = server.minDifficulty;
-        node.cur_money = server.moneyAvailable;
-        node.cur_level = server.hackDifficulty;
-        node.prepped   = node.cur_level == node.level && node.cur_money == node.money;
-        node.backdoor  = server.backdoorInstalled; 
-        node.ram       = server.maxRam;
-        node.cores     = server.cpuCores;
+    sfh.corp.ready = sfh.corp.reserve && sfh.procs.home.ram >= reserve_ram;
 
-        node.tH = 5000 * (2.5 * node.skill * node.level + 500)
-            / ((sfh.player.hac + 50) * sfh.player.mult.hack_time * sfh.intMult(1));
-        node.tG = 3.2 * node.tH;
-        node.tW = 4.0 * node.tH;
+    const pool_ram_cutoff = Math.max(sfh.network.home.ram / 64, 4);
+    for (const server of sfh.servers()) {
+        const s = server.server = ns.getServer(server.name);
+
+        if (!server.root) {
+            server.cur_ports = 0;
+            try { ns.brutessh (server.name); ++server.cur_ports; } catch {}
+            try { ns.ftpcrack (server.name); ++server.cur_ports; } catch {}
+            try { ns.relaysmtp(server.name); ++server.cur_ports; } catch {}
+            try { ns.httpworm (server.name); ++server.cur_ports; } catch {}
+            try { ns.sqlinject(server.name); ++server.cur_ports; } catch {}
+            try { ns.nuke     (server.name); server.root = true; } catch {}
+        }
+
+        server.backdoor  = s.backdoorInstalled; 
+        server.target    = !server.owned && server.money > 0 && server.root && sfh.player.hac >= server.skill;
+
+        server.ram       = s.maxRam;
+        server.cores     = s.cpuCores;
+        server.pool      = !server.hnet && (server.owned
+            || (server.cur_ports >= server.ports && server.ram > pool_ram_cutoff));
+
+        server.money     = s.moneyMax;
+        server.level     = s.minDifficulty;
+        server.cur_money = s.moneyAvailable;
+        server.cur_level = s.hackDifficulty;
+        server.prepped   = server.cur_level == server.level && server.cur_money == server.money;
+
+        server.tH = 5000 * (2.5 * server.skill * server.level + 500)
+            / ((sfh.player.hac + 50) * sfh.player.mults.hack_time * sfh.intMult(1));
+        server.tG = 3.2 * server.tH;
+        server.tW = 4.0 * server.tH;
+
+        server.ip  = s.ip;
+        server.cct = ns.ls(server.name, ".cct");
     }
 
-    for (const node of sfh.nodes()) {
-        if (!node.root) {
-            node.cur_ports = 0;
-            try { ns.brutessh (node.name); ++node.cur_ports; } catch {}
-            try { ns.ftpcrack (node.name); ++node.cur_ports; } catch {}
-            try { ns.relaysmtp(node.name); ++node.cur_ports; } catch {}
-            try { ns.httpworm (node.name); ++node.cur_ports; } catch {}
-            try { ns.sqlinject(node.name); ++node.cur_ports; } catch {}
-            try { ns.nuke     (node.name); node.root = true; } catch {}
+    sfh.procs.pools = Array.from(sfh.servers(s => s.pool));
 
-            if (node.root && (node.owned || node.ram >= 2) && !node.hnet
-                && sfh.procs.pools.find(n => n.name == node.name) == null)
-            {
-                sfh.procs.pools.push(node);
+    if (sfh.netstat.ready) {
+        const home_scripts = new Set(ns.ls("home", "/bin/"));
+        const changed_scripts = [];
+        for (const script of home_scripts) {
+            const script_data = ns.read(script) as string;
+            if (script_data != "" && (script_cache[script] == null || script_cache[script] != script_data)) {
+                script_cache[script] = script_data;
+                changed_scripts.push(script);
             }
         }
 
-        if (!node.target) {
-            node.target = !node.owned && node.money > 0 && node.root && sfh.player.hac >= node.skill;
+        for (const pool of sfh.servers(s => s.ram > 0 && !s.hnet)) {
+            if (pool.name === "home") { continue; }
+            const pool_scripts = new Set(ns.ls(pool.name, "/bin/"));
+
+            for (const script of pool_scripts) {
+                if (!home_scripts.has(script)) { ns.rm(script, pool.name); }
+            }
+
+            const copy_scripts = new Set(changed_scripts); 
+            for (const script of home_scripts) {
+                if (!pool_scripts.has(script)) { copy_scripts.add(script); }
+            }
+
+            if (copy_scripts.size > 0) {
+                sfh.netstat.ready = false;
+                sfh.netstat.scp_args.push([Array.from(copy_scripts), pool.name]);
+            }
         }
     }
 
-    const home_scripts = new Set(ns.ls("home", "/bin/"));
-    const changed_scripts = [];
-    for (const script of home_scripts) {
-        const script_data = ns.read(script) as string;
-        if (script_data != "" && (script_cache[script] == null || script_cache[script] != script_data)) {
-            script_cache[script] = script_data;
-            changed_scripts.push(script);
-        }
+    const scp_t0 = performance.now();
+    for (;;) {
+        const args = sfh.netstat.scp_args.pop();
+        if (!args) { break; }
+
+        await ns.scp(...args, "home");
+        if (performance.now() - scp_t0 > 100) { break; }
     }
-
-    for (const pool of sfh.pools()) {
-        if (pool.name === "home") { continue; }
-        const pool_scripts = new Set(ns.ls(pool.name, "/bin/"));
-
-        for (const script of pool_scripts) {
-            if (!home_scripts.has(script)) { ns.rm(script, pool.name); }
-        }
-
-        const copy_scripts = Array.from(changed_scripts); 
-        for (const script of home_scripts) {
-            if (!pool_scripts.has(script)) { copy_scripts.push(script); }
-        }
-
-        if (copy_scripts.length > 0) { await ns.scp(copy_scripts, pool.name, "home"); }
-    }
+    sfh.netstat.ready = (sfh.netstat.scp_args.length === 0);
 
     sfh.netGC(ns.isRunning.bind(ns));
     sfh.netSort();
+
+    if (!sfh.netstat.ready) { sfh.print("    {} copy operations remain", sfh.netstat.scp_args.length); }
 }
 
 export async function main(ns: NS) {

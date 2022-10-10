@@ -1,226 +1,315 @@
-const max_scripts = 10000;
 const backdoor_names = new Set<string>();
 
 type Params = typeof sfh.hacking.list[0];
-type Job    = NonNullable<Params["job"]>;
 
-function updateMinDPS(dps: number) {
-    if (dps >= 100e6) { sfh.hacking.min_dps = Math.max(sfh.hacking.min_dps, dps / 20); }
+function solveGrow(base: number, money_lo: number, money_hi: number) {
+    if (money_lo >= money_hi) { return 0; }
+
+    let threads = 1000;
+    let prev = threads;
+    for (let i = 0; i < 30; ++i) {
+        let factor = money_hi / Math.min(money_lo + threads, money_hi - 1);
+        threads = Math.log(factor) / Math.log(base);
+        if (Math.ceil(threads) == Math.ceil(prev)) { break; }
+        prev = threads;
+    }
+
+    return Math.ceil(Math.max(threads, prev, 0));
 }
 
-function updateParamsPrep(params: Params) {
+function updateParams(ns: NS, params: Params, t0 = 100) {
     if (params.target?.name == null) {
-        throw new Error(`Tried to update prep params for invalid target ${params.target}`);
+        throw new Error(`Tried to update params for invalid target ${params.target?.name ?? "null"}`);
     }
 
-    params.prep ??= {} as any;
-    if (params.target.prepped || params.job?.type === "batch") {
-        params.prep.time  = 0;
-        params.prep.money = params.target.money;
-        params.prep.level = params.target.level;
-        return;
-    }
+    const target = params.target;
+    const recalc = !params.calc_time || params.calc_hac != sfh.player.hac;
 
-    const init_money = params.job?.end_money ?? params.target.cur_money;
-    const init_level = params.job?.end_level ?? params.target.cur_level;
-    if (params.prep?.money === init_money && params.prep?.level === init_level
-        && params.skill === sfh.player.hac) { return; }
-
-    params.prep.time  = Math.max(0, (params.job?.end_time ?? 0) - sfh.time.now);
-    params.prep.money = init_money;
-    params.prep.level = init_level;
-
-    const max_threads = Math.floor(sfh.procs.total_ram / 1.75);
-    if (max_threads < 1) {
-        params.prep.time = Number.POSITIVE_INFINITY;
-    } else {
-        const calc = sfh.calc(params.target);
-        calc.cur_money = init_money;
-        calc.cur_level = init_level;
-
-        if (calc.cur_level > 100) { calc.cur_level = 100; }
-
-        let cur_threads = 0;
-        let cur_time = calc.weakTime(calc.cur_level);
-
-        while (calc.cur_money != params.target.money && calc.cur_level != params.target.level) {
-            const args: [number, number, number, boolean] =
-                [calc.cur_level, calc.cur_money, calc.cur_level, false];
-
-            let prep, grow = false;
-            if (calc.cur_level != calc.level) {
-                prep = calc.solveWeak(calc.level, ...args);
-            } else {
-                prep = calc.solveGrow(calc.money, ...args);
-                grow = true;
-            }
-
-            let threads = Math.min(prep.threads, max_threads - cur_threads);
-
-            if (threads < 1) {
-                params.prep.time += cur_time;
-                cur_time = calc.weakTime(calc.cur_level);
-                cur_threads = 0;
-                threads = Math.min(prep.threads, max_threads);
-            }
-
-            if (grow) {
-                calc.runGrow(threads, calc.cur_level);
-            } else {
-                calc.runWeak(threads, calc.cur_level);
-            }
-
-            cur_threads += threads;
-        }
-
-        params.prep.time += cur_time;
-    }
-}
-
-function updateParamsHack(params: Params, t0 = 80) {
-    if (params.target?.name == null) {
-        throw new Error(`Tried to update hack params for invalid target ${params.target}`);
-    } else if (params?.skill === sfh.player.hac || params.job?.type === "batch") {
-        return;
-    } else if (params.target.tH < t0) {
-        t0 = params.target.tH;
-    }
-
-    params.job ??= null;
-    params.skill = sfh.player.hac;
-    const calc = sfh.calc(params.target).setup();
-    const frac = calc.hackFrac();
-
-    params.single ??= {} as any;
-    params.single.threads = Math.floor(Math.min(sfh.procs.max_ram / 1.7, (frac == 0 ? 0 : 0.95 / frac)));
-    let single = calc.runHack(params.single.threads);
-    params.prob         = single.prob;
-    params.single.money = single.profit;
-    params.single.dps   = single.prob * single.profit * 1000 / params.target.tW;
-
-    const schedule = calc.batchSchedule(t0);
-    params.batch ??= {} as any;
-    params.batch.t0     = t0;
-    params.batch.depth  = schedule.depth;
-    params.batch.period = schedule.period;
-
-    let threads: [number, number, number, number] = [0, 0, 0, 0];
-    let max_frac  = 0.95;
-    let max_depth = 0;
-
-    // calculate batch params at one hacking level up to avoid overhacking on the cooldown
-    ++calc.skill;
-    while (max_depth <= 0) {
-        calc.setup();
-        const hmain = calc.solveHack(max_frac, calc.level);
-        if (hmain.threads == 0) { break; }
-        const hweak = calc.solveWeak(calc.level, calc.level);
-        const gmain = calc.solveGrow(calc.money, calc.level);
-        const gweak = calc.solveWeak(calc.level, calc.level);
-
-        threads[0] = hmain.threads;
-        threads[1] = hweak.threads;
-        threads[2] = gmain.threads;
-        threads[3] = gweak.threads;
-
-        const total_ram = 1.7 * threads[0] + 1.75 * (threads[1] * threads[2] * threads[3]);
-        const waste_ram = sfh.procs.pools.length * total_ram / 8;
-        max_depth = Math.floor((sfh.procs.total_ram - waste_ram) / total_ram);
-        max_frac  = (max_frac > 0.5 ? 0.5 : max_frac / 2);
-    }
-
-    if (max_depth <= 0) {
-        params.batch.threads = [0, 0, 0, 0];
-        params.batch.dps = 0;
-    } else {
-        params.batch.money = threads[0] * Math.floor(frac * params.target.money) * sfh.bitnode.mult.hack_profit;
-        params.batch.threads = threads;
-        params.batch.dps = params.prob * params.batch.money * 1000 / schedule.period;
-    }
-
-    params.dps = Math.max(params.single.dps, params.batch.dps);
-    return params;
-}
-
-function runPrep(ns: NS, params: Params) {
-    if (params == null || (params.job && params.job.type !== "adhoc") || !sfh.can.scripts) { return; }
-
-    const job: Job = params.job ?? {
-        type: "adhoc", procs: new Set(), time: sfh.time.now, end_time: 0, scripts: 0, dps: 0,
-        end_money: params.target.cur_money, end_level: params.target.cur_level
+    params.prep ??= {
+        procs:     new Set(),
+        end_time:  0,
+        end_money: 0,
+        end_level: 0,
+        time:      0
     };
 
-    if (job.end_money == params.target.money && job.end_level == params.target.level) { return; }
+    const prep = params.prep;
+    if (prep.procs.size == 0) {
+        prep.end_time  = sfh.time.now;
+        prep.end_money = (params.batch?.proc ? target.money : target.cur_money);
+        prep.end_level = (params.batch?.proc ? target.level : target.cur_level);
+    }
 
-    const calc = sfh.calc(params.target);
-    calc.cur_money = job.end_money;
-    calc.cur_level = job.end_level;
+    const max_threads = Math.floor(sfh.procs.total_ram / 1.75);
+    const max_time    = 1000 * 60 * 60 * 24;
+    if (max_threads < 1) {
+        prep.time = max_time;
+    } else if (recalc || prep.procs.size > 0) {
+        const server = Object.assign({}, target.server);
+        server.moneyAvailable = prep.end_money;
+        server.hackDifficulty = prep.end_level;
 
-    const hack_time = calc.hackTime(calc.cur_level);
+        let prev_time    = 0;
+        let cur_threads  = 0;
+        let cur_duration = 0;
+
+        while (server.moneyAvailable < target.money || server.hackDifficulty > target.level) {
+            const weak = server.hackDifficulty > 1.02 * target.level
+                || (server.moneyAvailable >= target.money && server.hackDifficulty > target.level);
+
+            let threads  = 0;
+            let duration = 0;
+            if (weak) {
+                threads  = Math.ceil((server.hackDifficulty - target.level) / 0.05);
+                duration = ns.formulas.hacking.weakenTime(server, sfh.player.player);
+            } else {
+                const base = ns.formulas.hacking.growPercent(server, 1, sfh.player.player, 1);
+                threads  = solveGrow(base, server.moneyAvailable, target.money);
+                duration = ns.formulas.hacking.growTime(server, sfh.player.player);
+            }
+
+            threads      = Math.min(threads, max_threads - cur_threads);
+            cur_threads += threads;
+            cur_duration = Math.max(cur_duration, duration);
+
+            if (weak) {
+                server.hackDifficulty = Math.max(target.level, server.hackDifficulty - 0.05 * threads);
+            } else {
+                const factor = ns.formulas.hacking.growPercent(server, threads, sfh.player.player, 1);
+                server.moneyAvailable = Math.min(target.money, (server.moneyAvailable + threads) * factor);
+                server.hackDifficulty = Math.min(100, server.hackDifficulty + threads * 0.004);
+            }
+
+            if (cur_threads >= max_threads) {
+                prev_time   += cur_duration;
+                cur_threads  = 0;
+                cur_duration = 0;
+            }
+
+            if (prev_time > max_time) { break; }
+        }
+
+        prep.time = Math.min((prep.end_time - sfh.time.now) + prev_time + cur_duration, max_time);
+    }
+
+    params.batch ??= {
+        hac:     [0, 0],
+        t0:      0,
+
+        period:  0,
+        kW:      0,
+        kG:      0,
+        kH:      0,
+
+        money:   0,
+        prob:    0,
+        max_dps: 0,
+        threads: [0, 0, 0, 0],
+
+        proc:    null,
+    };
+
+    const batch = params.batch;
+    if (batch.proc) { return; }
+
+    if (recalc) {
+        const player = JSON.parse(JSON.stringify(sfh.player.player));
+        const server = Object.assign({}, target.server);
+        server.moneyAvailable = target.money;
+        server.hackDifficulty = target.level;
+
+        const ram_max = 0.9 * sfh.procs.total_ram;
+        const new_exp = sfh.player.hac_exp + (ns.formulas.hacking.hackExp(server, player)
+            * (1000 * 60 * 60) / ns.formulas.hacking.weakenTime(server, player) * ram_max / 1.75);
+        batch.hac[0] = sfh.player.hac;
+        batch.hac[1] = Math.round(sfh.player.mults.hac * (32 * Math.log(new_exp + 534.5) - 200));
+        batch.hac[1] = Math.min(Math.max(batch.hac[1], batch.hac[0]), batch.hac[0] + 24);
+
+        player.skills.hacking = batch.hac[0];
+        const hack_time_hi = ns.formulas.hacking.hackTime(server, player);
+        const grow_time_hi = 3.2 * hack_time_hi;
+        const weak_time_hi = 4.0 * hack_time_hi;
+
+        player.skills.hacking = batch.hac[1];
+        const hack_time_lo = ns.formulas.hacking.hackTime(server, player);
+        const grow_time_lo = 3.2 * hack_time_lo;
+        const weak_time_lo = 4.0 * hack_time_lo;
+
+        const hack_frac = ns.formulas.hacking.hackPercent(server, player);
+        const hack_prob = ns.formulas.hacking.hackChance(server, player);
+        const grow_base = ns.formulas.hacking.growPercent(server, 1, player, 1);
+
+        t0 = Math.min(hack_time_lo, t0);
+        batch.t0      = t0;
+        batch.prob    = hack_prob;
+        batch.max_dps = 0;
+
+        const max_hack_threads = Math.min(1000, Math.ceil(1 / hack_frac));
+        const batch_data = Array.from({ length: max_hack_threads + 1 }, () =>
+            ({ threads: [0, 0, 0, 0] as [number, number, number, number], money: 0 }));
+
+        for (let hack_threads = 1; hack_threads <= max_hack_threads; ++hack_threads) {
+            const money_taken  = Math.min(Math.max(hack_threads * hack_frac, 0), 1) * server.moneyMax;
+            const grow_threads = solveGrow(grow_base, server.moneyMax - money_taken, server.moneyMax);
+
+            const weak_threads_hack = Math.ceil(hack_threads * 0.04);
+            const weak_threads_grow = Math.ceil(grow_threads * 0.08);
+
+            const data = batch_data[hack_threads];
+            data.threads[0] = hack_threads;
+            data.threads[1] = weak_threads_hack;
+            data.threads[2] = grow_threads;
+            data.threads[3] = weak_threads_grow;
+            data.money      = money_taken * sfh.player.mults.hack_profit;
+        }
+
+        const kW_max = Math.floor(1 + (weak_time_lo - 4 * t0) / (8 * t0));
+        schedule: for (let kW = kW_max; kW >= 1; --kW) {
+            const kG_lo = Math.ceil(Math.max((kW - 1) * 0.8, 1));
+            const kG_hi = Math.floor(1 + kW * 0.8);
+
+            for (let kG = kG_hi; kG >= kG_lo; --kG) {
+                const kH_lo = Math.ceil(Math.max((kW - 1) * 0.25, (kG - 1) * 0.3125, 1));
+                const kH_hi = Math.floor(Math.min(1 + kW * 0.25, 1 + kG * 0.3125));
+
+                for (let kH = kH_hi; kH >= kH_lo; --kH) {
+                    let period_lo_H = (hack_time_hi + 5 * t0) / kH;
+                    let period_hi_H = (hack_time_lo - 1 * t0) / (kH - 1);
+                    let period_lo_G = (grow_time_hi + 3 * t0) / kG
+                    let period_hi_G = (grow_time_lo - 3 * t0) / (kG - 1);
+                    let period_lo_W = (weak_time_hi + 4 * t0) / kW;
+                    let period_hi_W = (weak_time_lo - 4 * t0) / (kW - 1);
+
+                    let period_lo = Math.max(period_lo_H, period_lo_G, period_lo_W);
+                    let period_hi = Math.min(period_hi_H, period_hi_G, period_hi_W);
+                    if (period_lo <= period_hi) {
+                        let data = null;
+
+                        for (let ht_lo = 1, ht_hi = max_hack_threads; ht_hi >= ht_lo;) {
+                            const ht = Math.round((ht_lo + ht_hi) / 2);
+                            const this_data = batch_data[ht];
+
+                            const ram_used = kH * 1.70 * this_data.threads[0]
+                                + kW * 1.75 * this_data.threads[1]
+                                + kG * 1.75 * this_data.threads[2]
+                                + kW * 1.75 * this_data.threads[3];
+
+                            if (ram_used <= ram_max) {
+                                data = this_data;
+                                ht_lo = ht + 1;
+                            } else {
+                                ht_hi = ht - 1;
+                            }
+                        }
+
+                        if (data) {
+                            batch.period  = period_lo;
+                            batch.kW      = kW;
+                            batch.kG      = kG;
+                            batch.kH      = kH;
+                            batch.money   = data.money;
+                            batch.max_dps = 1000 * data.money * hack_prob / period_lo;
+                            batch.threads = data.threads;
+
+                            break schedule;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+let can_prep = true;
+function runPrep(ns: NS, params: Params) {
+    if (!can_prep || !sfh.can.scripts || params == null
+        || params.batch.proc || params.target.prepped) { return false; }
+    const target = params.target;
+    const prep   = params.prep;
+
+    const server = Object.assign({}, target.server);
+    const hack_time = ns.formulas.hacking.hackTime(server, sfh.player.player);
     const grow_time = 3.2 * hack_time;
     const weak_time = 4.0 * hack_time;
 
-    let time = Math.max(sfh.time.now, job.end_time);
-    
-    const max_ram = sfh.procs.total_ram / 2;
-    let cur_ram = 0;
-    if (params.job != null) {
-        for (const proc of params.job.procs) { cur_ram += proc.ram; }
-    }
+    server.moneyAvailable = prep.end_money;
+    server.hackDifficulty = prep.end_level;
 
-    while (sfh.hacking.scripts < max_scripts && (calc.cur_level != calc.level || calc.cur_money != calc.money)) {
-        const args: [number, number, number, boolean] =
-            [calc.cur_level, calc.cur_money, calc.cur_level, false];
+    const ram_max = 0.5 * sfh.procs.total_ram;
+    let  ram_used = 0;
+    for (const proc of prep.procs) { ram_used += proc.ram; }
 
-        let script, duration, prep, ram = 1.75;
-        if (calc.cur_level > 100) {
-            script   = "/bin/hack.js";
-            duration = hack_time;
-            prep     = calc.runHack(1, ...args);
-            ram      = 1.7;
-        } else if (calc.cur_level != calc.level) {
-            script   = "/bin/weak.js";
-            duration = weak_time;
-            prep     = calc.solveWeak(calc.level, ...args);
-        } else {
-            script   = "/bin/grow.js";
-            duration = grow_time;
-            prep     = calc.solveGrow(calc.money, ...args);
+    let ret  = false;
+    let time = Math.max(sfh.time.now, prep.end_time);
+    while ((server.moneyAvailable < target.money || server.hackDifficulty > target.level)
+        && sfh.hacking.scripts < sfh.hacking.max_scripts)
+    {
+        //sfh.print("    Prep loop: {p} {6,3} {} {}",
+        //    server.moneyAvailable / target.money,
+        //    server.hackDifficulty - target.level,
+        //    sfh.hacking.scripts, sfh.hacking.max_scripts);
+
+        let script = "/bin/hack.js", threads = 1, duration = hack_time, ram = 1.7;
+        if (server.hackDifficulty <= 100) {
+            if (server.hackDifficulty > 1.02 * target.level
+                || (server.moneyAvailable >= target.money && server.hackDifficulty > target.level))
+            {
+                script   = "/bin/weak.js";
+                threads  = Math.ceil((server.hackDifficulty - target.level) / 0.05);
+                duration = weak_time;
+                ram      = 1.75;
+            } else {
+                const base = ns.formulas.hacking.growPercent(server, 1, sfh.player.player, 1);
+                script   = "/bin/grow.js";
+                threads  = solveGrow(base, server.moneyAvailable, target.money);
+                duration = grow_time;
+                ram      = 1.75;
+            }
         }
 
-        const max_threads = Math.min(prep.threads, (max_ram - cur_ram) / ram);
-        if (max_threads < 1) { break; }
+        //sfh.print("    {} {} {0,2}ms {}GB", script, threads, duration, ram);
 
-        const host = sfh.netHost(ram, 1, prep.threads);
-        if (host == null) { break; }
+        const host = sfh.netHost(ram, 1, threads);
+        //sfh.print("    host {j}", host);
+        if (host == null) { can_prep = false; break; }
+        threads = host.threads;
 
         const begin_time = Math.max(time - duration, sfh.time.now);
         const event_time = begin_time - sfh.time.now + performance.now();
-        const proc = sfh.netProc(job.procs, ns.exec.bind(ns), script, host, params.target.name, event_time);
-        if (!proc) { break; }
+        const proc = sfh.netProc(prep.procs, ns.exec.bind(ns), script, host, params.target.name, event_time);
+        //sfh.print("proc {j}", proc);
+        //sfh.print("=====");
+        if (!proc) { can_prep = false; break; }
 
         ++sfh.hacking.scripts;
-        ++job.scripts;
-        cur_ram += ram * host.threads;
+        ram_used += ram * threads;
+        if (params.init_time == 0) { params.init_time = sfh.time.now; }
 
         if (script == "/bin/hack.js") {
-            calc.runHack(host.threads, calc.cur_level);
+            const factor = ns.formulas.hacking.hackPercent(server, sfh.player.player);
+            server.moneyAvailable = Math.max(0, server.moneyAvailable - factor * server.moneyMax);
+            server.hackDifficulty = Math.min(100, server.hackDifficulty + threads * 0.002);
         } else if (script == "/bin/grow.js") {
-            calc.runGrow(host.threads, calc.cur_level);
+            const factor = ns.formulas.hacking.growPercent(server, threads, sfh.player.player, 1);
+            server.moneyAvailable = Math.min(target.money, (server.moneyAvailable + threads) * factor);
+            server.hackDifficulty = Math.min(100, server.hackDifficulty + threads * 0.004);
         } else {
-            calc.runWeak(host.threads, calc.cur_level);
+            server.hackDifficulty = Math.max(target.level, server.hackDifficulty - threads * 0.05);
         }
 
         time = begin_time + duration + 1000;
-        proc.end_time = time;
-        job.end_time  = Math.max(job.end_time, time);
-        job.end_money = calc.cur_money;
-        job.end_level = calc.cur_level;
+        proc.end_time  = time;
+        prep.end_time  = Math.max(prep.end_time, time);
+        prep.end_money = server.moneyAvailable;
+        prep.end_level = server.hackDifficulty;
 
-        params.job = job;
+        ret = true;
     }
+
+    return ret;
 }
 
+/*
 function runHack(ns: NS, params: Params) {
     if (params == null || params.job != null || !params.target.prepped || !sfh.can.scripts || !sfh.can.hacking
         || params.single.dps < sfh.hacking.min_dps || sfh.hacking.scripts >= max_scripts) { return; }
@@ -247,78 +336,41 @@ function runHack(ns: NS, params: Params) {
         params.job    = job;
     }
 }
+*/
 
+let can_batch = true;
 function runBatch(ns: NS, params: Params) {
-    if (params == null || params.job != null || !params.target.prepped
-        || !sfh.can.scripts || !sfh.can.hacking || !sfh.can.batching || sfh.procs.exp.size > 0
-        || params.batch.dps < sfh.hacking.min_dps || sfh.hacking.scripts + 4 >= max_scripts) { return; }
-
-    const job: Job = { type: "batch", procs: new Set(), time: sfh.time.now, end_time: 0,
-        scripts: 0, dps: 0, quit: false, skill: params.skill, t0: params.batch.t0,
-        depth: params.batch.depth, period: params.batch.period,
-        money: params.batch.money, prob: params.prob,
-        threads: params.batch.threads, hosts: [Array(4)] as any
-    };
+    if (!can_batch || !sfh.can.scripts || !sfh.can.hacking || !sfh.can.batching || params == null
+        || params.prep.procs.size > 0 || params.batch.proc || !params.target.prepped
+        || sfh.hacking.scripts >= sfh.hacking.max_scripts) { return false; }
+    can_batch = false;
 
     const host_ram = ns.getScriptRam("/bin/batch.js");
     const host = sfh.netHost(host_ram, 1);
     if (!host) { return; }
 
-    host.alloc = {};
-    let max_depth = 0;
-    let ram = [1.7, 1.75, 1.75, 1.75];
-    let i = 0;
+    const proc = sfh.netProc(null, ns.exec.bind(ns), "/bin/batch.js", host, params.target.name);
+    if (proc) {
+        proc.pids  = new Set();
+        proc.alloc = {};
 
-    allocate: for (const pool of sfh.pools()) {
-        let free = pool.ram - pool.used_ram;
-        while (free >= params.batch.threads[i] * ram[i]) {
-            free -= params.batch.threads[i] * ram[i];
-            job.hosts[max_depth][i] = pool.name;
+        Object.assign(params.batch, {
+            proc, log: [], quit: false, scripts: 1, batch: -1, depth: 0, dps: 0,
+            delay: [0, 0, 0, 0], pools: [{}, {}, {}, {}],
+            running: [
+                Array.from({ length: params.batch.kH }, () => ({ host: "", pid: 0 })),
+                Array.from({ length: params.batch.kW }, () => ({ host: "", pid: 0 })),
+                Array.from({ length: params.batch.kG }, () => ({ host: "", pid: 0 })),
+                Array.from({ length: params.batch.kW }, () => ({ host: "", pid: 0 })),
+            ]
+        });
 
-            host.alloc[pool.name] ??= 0;
-            host.alloc[pool.name] += params.batch.threads[i] * ram[i];
-
-            if (++i == 4) {
-                max_depth++;
-                if (max_depth >= params.batch.depth || sfh.hacking.scripts + 4 * max_depth > max_scripts) {
-                    break allocate;
-                }
-
-                job.hosts.push(Array(4) as any);
-                i = 0;
-            }
-        }
+        ++sfh.hacking.scripts;
+        params.init_time = sfh.time.now;
+        can_prep = false;
     }
 
-    if (max_depth <= 0) { return; }
-
-    if (job.depth != max_depth) {
-        const schedule = sfh.calc(params.target).batchSchedule(job.t0, max_depth);
-        job.depth   = schedule.depth
-        job.period  = schedule.period;
-        job.scripts = 4 * job.depth + 1;
-    }
-
-    job.dps = params.batch.dps * params.batch.period / job.period;
-    //if (job.dps < min_dps || job.dps * 25 < params.single.dps || job.dps * 10 < params.batch.dps) { return; }
-    if (job.dps < sfh.hacking.min_dps) { return; }
-
-    const rem_hosts = job.hosts.splice(job.depth);
-    for (const host_set of rem_hosts) {
-        for (let i = 0; i < 4; ++i) {
-            if (host_set[i]) { host.alloc[host_set[i]] -= params.batch.threads[i] * ram[i]; }
-        }
-    }
-
-    const start_time = Math.max(sfh.hacking.batch_time - job.depth * job.period, sfh.time.now + 2000);
-    sfh.hacking.batch_time = start_time + job.depth * job.period;
-
-    if (sfh.netProc(job.procs, ns.exec.bind(ns), "/bin/batch.js", host, params.target.name)) {
-        params.job = job;
-
-        sfh.hacking.scripts += job.scripts;
-        updateMinDPS(job.dps);
-    }
+    return !!proc;
 }
 
 async function sfhMain(ns: NS) {
@@ -326,6 +378,7 @@ async function sfhMain(ns: NS) {
 
     sfh.hacking.scripts = 0;
     sfh.hacking.min_dps = 1;
+    const gain = { money: 0, hac_exp: 0 };
 
     if (backdoor_names.size == 0) {
         for (const name of [
@@ -333,15 +386,8 @@ async function sfhMain(ns: NS) {
             "ecorp", "megacorp", "b-and-a", "blade", "nwo", "clarkinc",
             "omnitek", "4sigma", "kwaigong", "fulcrumtech", "fulcrumassets"
         ]) { backdoor_names.add(name); }
-        for (const node of sfh.nodes(n => !n.owned)) { backdoor_names.add(node.name); }
+        for (const server of sfh.servers(s => !s.owned)) { backdoor_names.add(server.name); }
     }
-
-    if (!sfh.procs.corp?.alive) { sfh.procs.corp = null; }
-    if (sfh.can.scripts && sfh.can.corp && !sfh.procs.corp && (sfh.state.has_corp || sfh.player.money > 150e9)) {
-        const host = sfh.netHost(ns.getScriptRam("/bin/corp.js"), 1);
-        sfh.procs.corp = sfh.netProc(null, ns.exec.bind(ns), "/bin/corp.js", host);
-    }
-    if (sfh.procs.corp?.alive) { ++sfh.hacking.scripts; }
 
     if (!sfh.procs.backdoor?.alive) { sfh.procs.backdoor = null; }
     if (sfh.can.scripts && !sfh.procs.backdoor) {
@@ -369,30 +415,17 @@ async function sfhMain(ns: NS) {
     }
     if (sfh.procs.backdoor?.alive) { ++sfh.hacking.scripts; }
 
-    if (!sfh.procs.contract?.alive) { sfh.procs.contract = null; }
-    if (sfh.can.scripts && sfh.can.contracts && !sfh.procs.contract) {
-        for (const node of sfh.nodes()) {
-            const files = ns.ls(node.name, ".cct");
-            if (files.length == 0) { continue; }
-
-            const host = sfh.netHost(ns.getScriptRam("/bin/cct.js"), 1);
-            sfh.procs.contract = sfh.netProc(null, ns.exec.bind(ns),
-                "/bin/cct.js", host, node.name, files[0]);
-            if (sfh.procs.contract) { break; }
-        }
-    }
-    if (sfh.procs.contract?.alive) { ++sfh.hacking.scripts; }
-
-    let script_fill = null;
-    if (sfh.goal.type !== "program" && sfh.goal.type !== "faction") {
-        if (sfh.network.joesguns.prepped && sfh.player.hac < sfh.goal.hac) {
-            script_fill = "exp";
-        } else if ((sfh.state.work?.goal && sfh.state.work?.org?.faction) ?? false) {
-            script_fill = "share";
-        } else if (sfh.state.augs.has("Stanek's Gift - Genesis")) {
-            script_fill = "stanek";
-        }
-    }
+    let script_fill = "stanek";
+    //if (sfh.goal.type !== "program" && sfh.goal.type !== "faction") {
+        // TODO: when to do stanek vs exp vs share?
+        //if (sfh.state.augs.has("Stanek's Gift - Genesis")) {
+        //    script_fill = "stanek";
+        //} else if (sfh.network.joesguns.prepped && sfh.player.hac < sfh.goal.hac) {
+        //    script_fill = "exp";
+        //} else if ((sfh.state.work?.goal && sfh.state.work?.org?.faction) ?? false) {
+        //    script_fill = "share";
+        //}
+    //}
 
     if (!sfh.can.scripts || script_fill !== "exp") {
         for (const proc of sfh.procs.exp) { ns.kill(proc.pid); }
@@ -411,7 +444,8 @@ async function sfhMain(ns: NS) {
         for (const proc of set) { if (!proc.alive) { set.delete(proc); } }
     }
 
-    if (sfh.can.scripts && script_fill != null) {
+    // TODO: run exp on best prepped server, not just joesguns
+    if (sfh.can.scripts && sfh.netstat.ready && script_fill != null) {
         let script = "/bin/stanek.js";
         let set    = sfh.procs.stanek;
         let args: (string | number)[] = [];
@@ -427,38 +461,55 @@ async function sfhMain(ns: NS) {
         const max_ram = Math.max(sfh.network.home.ram / 64, 4);
         const script_ram = ns.getScriptRam(script);
 
-        const nodes = sfh.nodes(n => !n.owned && n.root && n.ram >= script_ram && n.ram <= max_ram && n.used_ram == 0);
-        for (const node of nodes) {
-            const host = { name: node.name, ram: node.ram, threads: Math.floor(node.ram / script_ram) };
-            sfh.netProc(set, ns.exec.bind(ns), script, host, ...args);
+        const servers = sfh.servers(s =>
+            !s.owned && s.root && s.ram >= script_ram && s.ram <= max_ram && s.used_ram == 0);
+        for (const server of servers) {
+            const host = { name: server.name, ram: server.ram, threads: Math.floor(server.ram / script_ram) };
+            const proc = sfh.netProc(set, ns.exec.bind(ns), script, host, ...args);
         }
     }
 
     sfh.hacking.scripts += sfh.procs.exp.size + sfh.procs.sharing.size + sfh.procs.stanek.size;
 
-    sfh.hacking.exp = 0;
     if (sfh.procs.exp.size > 0) {
         const calc = sfh.calc("joesguns");
         const rate = calc.exp() / calc.growTime();
-        for (const proc of sfh.procs.exp) { sfh.hacking.exp += rate * proc.threads; }
+        for (const proc of sfh.procs.exp) { gain.hac_exp += rate * proc.threads; }
     }
 
-    for (const target of sfh.nodes(n => n.target)) {
+    can_prep  = true;
+    can_batch = true;
+    let batches = 0;
+    let min_dps = 0;
+
+    for (const target of sfh.servers(s => s.target)) {
         let params = hacking.params[target.name];
         if (params) {
-            if (params.job) {
-                for (const proc of params.job.procs) {
-                    if (proc.alive) { break; }
-                    params.job.procs.delete(proc);
+            if (params.prep.procs.size > 0) {
+                for (const proc of params.prep.procs) {
+                    if (!proc.alive) { params.prep.procs.delete(proc); }
                 }
-
-                if (params.job.procs.size === 0) { params.job = null; }
             }
 
-            if (params.job) {
-                sfh.hacking.scripts += params.job.scripts;
-                updateMinDPS(params.job.dps);
+            if (!params.batch.proc?.alive) { params.batch.proc = null; }
+            if (params.prep.procs.size == 0 && params.batch.proc == null) { params.init_time = 0; }
 
+            sfh.hacking.scripts += params.prep.procs.size;
+            sfh.hacking.scripts += params.batch.proc ? params.batch.scripts : 0;
+
+            min_dps = Math.max(min_dps, 0.5 * params.batch.max_dps);
+            if (params.batch.proc) {
+                ++batches;
+                if (params.batch.batch < 0) {
+                    can_prep = can_batch = false;
+                } else if (params.batch.depth < params.batch.kW) {
+                    can_batch = false;
+                }
+            }
+
+            /*
+            // cull redundant procs
+            if (params.job) {
                 if (params.job.type === "adhoc") {
                     const procs = [...params.job.procs];
                     const def_t = params.job.end_time;
@@ -484,31 +535,117 @@ async function sfhMain(ns: NS) {
                     }
                 }
             }
+           */
         } else {
             params = hacking.params[target.name] = { target } as Params;
             hacking.list.push(params);
-        } 
+        }
 
-        updateParamsPrep(params);
-        updateParamsHack(params);
+        updateParams(ns, params);
     }
 
-    for (const params of hacking.list) {
-        if (params.job?.type === "batch" && params.job.dps < sfh.hacking.min_dps) {
-            params.job.quit = true;
+    hacking.list.sort((p: Params, q: Params) => q.batch.max_dps - p.batch.max_dps);
+
+    if (sfh.can.scripts && sfh.netstat.ready) {
+        if (can_batch) {
+            for (const params of hacking.list) {
+                if (params.batch.max_dps < min_dps) { break; }
+                runBatch(ns, params);
+                if (!can_batch) { break; }
+            }
+        }
+
+        for (const params of hacking.list) {
+            const batch = params.batch;
+            if (!batch.proc) { continue; }
+
+            if (!batch.proc.alloc) {
+                throw new Error(`Batch of ${params.target.name} has a proc without an alloc`);
+            }
+
+            const total = [0, 0, 0, 0];
+            for (let i = 0; i < 4; ++i) {
+                total[i] = Object.values(batch.pools[i]).reduce((a, p) => a += p.count, 0);
+            }
+
+            const k = [batch.kH, batch.kW, batch.kG, batch.kW];
+            for (let index = 0;; index = (index + 1) % 4) {
+                if ((total[0] == k[0] && total[1] == k[1] && total[2] == k[2] && total[3] == k[3])
+                    || sfh.hacking.scripts == sfh.hacking.max_scripts)
+                { break; }
+
+                if (total[index] == k[index] || total[index] > total[3]) { continue; }
+
+                const host = sfh.netHost((index == 0 ? 1.7 : 1.75), batch.threads[index]);
+                if (!host) { break; }
+
+                batch.pools[index][host.name] ??= { count: 0, free: 0 };
+                ++batch.pools[index][host.name].count;
+                ++batch.pools[index][host.name].free;
+                ++total[index];
+
+                batch.proc.alloc[host.name] ??= 0;
+                batch.proc.alloc[host.name] += host.ram;
+
+                ++sfh.hacking.scripts;
+                sfh.network[host.name].used_ram += host.ram;
+                if (sfh.network[host.name].used_ram > sfh.network[host.name].ram - 1e-3) {
+                    sfh.network[host.name].used_ram = sfh.network[host.name].ram;
+                }
+            }
+
+            batch.depth = Math.max(total[0], total[1], total[2], total[3]);
+            batch.dps   = batch.max_dps * batch.depth / batch.kW;
+        }
+
+        let req_money = sfh.goal.money - sfh.money.curr;
+        if (req_money <= 0) { req_money = sfh.goal.money_total - sfh.money.curr; }
+        if (req_money <= 0) { req_money = sfh.money.curr; }
+
+        const prep_max = 2 + 2 * batches;
+        let prep_count = 0;
+
+        const prep_list = Array.from(hacking.list)
+            .filter(p => !p.target.prepped && (p.target.name == "joesguns" || p.batch.max_dps >= min_dps))
+            .sort((p, q) => {
+                const p_time = p.prep.time + req_money / p.batch.max_dps * 1000;
+                const q_time = q.prep.time + req_money / q.batch.max_dps * 1000;
+                return p_time - q_time;
+            })
+            .slice(0, prep_max);
+
+        for (const params of prep_list) {
+            if (can_prep) { runPrep(ns, params); }
+
+            if (params.prep.procs.size > 0) {
+                ++prep_count;
+
+                if (prep_count > prep_max) {
+                    for (const proc of params.prep.procs) {
+                        ns.kill(proc.pid);
+                        if (proc.pids) { for (const pid of proc.pids) { ns.kill(pid); } }
+                    }
+
+                    params.prep.procs.clear();
+                    can_prep = false;
+                }
+            }
         }
     }
 
-    let req_money = sfh.goal.money - sfh.money.curr;
-    if (req_money <= 0) { req_money = sfh.goal.money_total - sfh.money.curr; }
-    if (req_money <= 0) { req_money = sfh.money.curr; }
+    for (const params of hacking.list) {
+        if (params.batch.proc) {
+            if (params.batch.max_dps < min_dps) {
+                params.batch.quit = true;
+            } else {
+                gain.money += params.batch.dps;
+            }
+        }
+    }
 
-    hacking.list.sort((p: Params, q: Params) => {
-        const p_time = p.prep.time + req_money / p.dps * 1000;
-        const q_time = q.prep.time + req_money / q.dps * 1000;
-        return p_time - q_time;
-    });
+    sfh.gainUpdate("scripts", gain);
 
+    /*
     if (sfh.can.scripts) {
         runPrep(ns, hacking.params.joesguns);
 
@@ -528,15 +665,14 @@ async function sfhMain(ns: NS) {
             if (rem_targets <= 0 && rem_prepped <= 0) { break; }
         }
     }
-
-    sfh.hacking.dps = 0;
-    for (const params of hacking.list) { sfh.hacking.dps += params.job?.dps ?? 0; }
+   */
 }
 
 export async function main(ns: NS) {
     if (ns.args.length == 1 && ns.args[0] == "sfh") { await sfhMain(ns); return; }
 
     switch (ns.args[0]) {
+        /*
         case undefined: {
             const adhoc_params = sfh.hacking.list
                 .filter(p => p.job?.type === "adhoc")
@@ -652,21 +788,19 @@ export async function main(ns: NS) {
             sfh.print("\nPROFIT: {m}/s {m}/hr   SCRIPTS: {d}/{d}",
                 dps, dps * 60 * 60, scripts, max_scripts);
         } break;
+       */
 
         case "quit":
         case "kill":
         case "exit": {
             for (const params of sfh.hacking.list) {
-                if (params.job?.type === "batch") { params.job.quit = true; }
+                if (params.batch.proc) { params.batch.quit = true; }
             }
         } break;
 
         case "tail": {
             for (const params of sfh.hacking.list) {
-                if (params.job?.type === "batch") {
-                    const [proc] = params.job.procs;
-                    ns.tail(proc.pid);
-                }
+                if (params.batch.proc) { ns.tail(params.batch.proc.pid); }
             }
         } break;
 

@@ -1,5 +1,5 @@
-const asleep = () => new Promise(resolve => setTimeout(resolve, 0));
-export async function contract(type: string, data: any, sleep = asleep): Promise<string[] | string | number | null> {
+export function contract(type: string, data: any): string[] | string | number | null {
+    let time_init = performance.now();
     let answer = null;
 
     switch (type) {
@@ -16,8 +16,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
             for (let k = 1; k < 2 * max + 1; ++k) { profit[0][k] = -prices[0]; }
             
             for (let i = 1; i < prices.length; ++i) {
-                await sleep();
-
                 const price = prices[i];
                 for (let k = 1; k < 2 * max + 1; ++k) {
                     if (k % 2 == 1) {
@@ -38,7 +36,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
 
             for (let i = 0; i < data.length; ++i) {
                 if (!Number.isFinite(dist[i])) { break; }
-                await sleep();
 
                 let new_dist = dist[i] + 1;
                 for (let j = i + 1; j <= Math.min(i + data[i], data.length - 1); ++j) {
@@ -190,15 +187,11 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
             let curr = new Set([{ e: digits[0].toString(), s: 1, l: 0, r: [digits[0]] }]);
 
             for (let d of digits.slice(1)) {
-                await sleep();
-                
                 const prev = curr;
                 curr = new Set();
 
                 let i = 0;
                 for (let expr of prev) {
-                    if (++i % 100 == 0) { await sleep(); }
-
                     if (expr.r.length > 1 || expr.r[0] != 0) {
                         const new_r = expr.r.slice(0, expr.r.length - 1).concat(expr.r[expr.r.length - 1] * 10 + d);
                         curr.add({ e: expr.e + d, s: expr.s, l: expr.l, r: new_r });
@@ -227,9 +220,7 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
 
             let primes = [];
             let max_n  = Math.sqrt(number);
-            for (let i = 0, n = 3; n <= max_n; n += 2) {
-                if (++i % 10000 == 0) { await sleep(); }
-
+            for (let n = 3; n <= max_n; n += 2) {
                 let prime = true;
                 let max_p = Math.sqrt(n);
                 for (const p of primes) {
@@ -257,8 +248,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
         case "Generate IP Addresses": {
             const queue = [{ oct: [] as string[], rem: Array.from(data, (x: string) => parseInt(x)) }];
             for (let i = 0; i < queue.length; ++i) {
-                await sleep();
-                
                 const ip = queue[i];
                 if (ip.oct.length == 4) { continue; }
                 if (ip.rem.length == 0) { continue; }
@@ -379,8 +368,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
             let merged = [];
             let lo = data[0][0], hi = data[0][1];
             for (let i = 1; i < data.length; ++i) {
-                await sleep();
-
                 if (data[i][0] <= hi) {
                     hi = Math.max(hi, data[i][1]);
                 } else {
@@ -397,8 +384,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
         case "Minimum Path Sum in a Triangle": {
             let tri = data;
             for (let i = 1; i < tri.length; ++i) {
-                await sleep();
-                
                 tri[i][0] += tri[i - 1][0];
                 for (let j = 1; j < tri[i].length - 1; ++j) {
                     tri[i][j] += Math.min(tri[i - 1][j - 1], tri[i - 1][j]);
@@ -493,8 +478,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
             const queue = [data];
             let length = 0;
             for (let i = 0; i < queue.length; ++i) {
-                await sleep();
-
                 const string = queue[i];
 
                 let value = 0;
@@ -529,8 +512,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
         case "Spiralize Matrix": {
             answer = [];
             for (let matrix = data;;) {
-                await sleep();
-
                 answer.push(...matrix[0]);
                 matrix = matrix.slice(1);
                 if (matrix.length == 0 || matrix[0].length == 0) { break; }
@@ -555,8 +536,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
             let sum = data[0], min = Math.min(data[0], 0), best = data[0];
 
             for (let x of data.slice(1)) {
-                await sleep();
-
                 sum += x;
                 min  = Math.min(min, sum);
                 best = Math.max(best, sum - min);
@@ -578,7 +557,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
             p[0] = 1;
 
             for (let part of parts) {
-                await sleep();
                 for (let n = 0; n < N; ++n) {
                     if (n + part <= N) { p[n + part] += p[n]; }
                 }
@@ -606,8 +584,6 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
             for (let j = 1; j < W; ++j) { count[0][j] = (data[0][j] == 1 ? 0 : count[0][j - 1]); }
 
             for (let i = 1; i < H; ++i) {
-                await sleep();
-
                 for (let j = 1; j < W; ++j) {
                     count[i][j] = (data[i][j] == 1 ? 0 : count[i - 1][j] + count[i][j - 1]);
                 }
@@ -620,32 +596,49 @@ export async function contract(type: string, data: any, sleep = asleep): Promise
     return answer;
 }
 
-export async function main(ns: NS) {
-    const node = ns.args[0] as string;
-    const file = ns.args[1] as string;
+export async function sfhMain(ns: NS) {
+    const [server] = sfh.servers(n => n.cct.length > 0);
 
-    let type, data;
-    try {
-        type = ns.codingcontract.getContractType(file, node);
-        data = ns.codingcontract.getData(file, node);
-    } catch { throw new Error(`Contract ${file} not found on ${node}`); }
+    if (server) {
+        const file = server.cct[0];
 
-    //sfh.print("CCT {50} {50} {30}", type, file, node);
-    let answer = await contract(type, data, ns.sleep.bind(ns, 0));
+        let type, data;
+        try {
+            type = ns.codingcontract.getContractType(file, server.name);
+            data = ns.codingcontract.getData(file, server.name);
+            const answer = contract(type, data);
 
-    if (answer == null) {
-        sfh.can.contracts = false;
-        throw new Error(`Got null for contract type \"${type}\"`);
-    } else {
-        const success = ns.codingcontract.attempt(answer as any, file, node);
+            if (answer == null) {
+                sfh.can.contracts = false;
+                throw new Error(`Got null for contract type \"${type}\"`);
+            } else {
+                const success = ns.codingcontract.attempt(answer as any, file, server.name);
 
-        if (!success) {
-            sfh.can.contracts = false;
-            throw new Error(`Incorrect answer for contract type "${type}"
+                if (!success) {
+                    sfh.can.contracts = false;
+                    throw new Error(
+`Incorrect answer for contract type "${type}"
 
 Input data: ${JSON.stringify(data)}
 Our answer: ${JSON.stringify(answer)}
- with type: ${typeof answer}`);
+ with type: ${typeof answer}`
+                    );
+                }
+            }
+        } catch {}
+    }
+}
+
+export async function main(ns: NS) {
+    if (ns.args.length == 1 && ns.args[0] == "sfh") { await sfhMain(ns); return; }
+
+    for (const server of sfh.servers(n => n.cct.length > 0)) {
+        sfh.print("{}", server.name);
+        for (const file of server.cct) {
+            try {
+                const type = ns.codingcontract.getContractType(file, server.name);
+                sfh.print("    {39} {}", file, type);
+            } catch {}
         }
     }
 }

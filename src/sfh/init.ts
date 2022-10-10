@@ -1,5 +1,8 @@
 import SFH from "/sfh/sfh.js"
 
+// TODO: construct this based on bitnode; e.g. if hacking level is penalised,
+// get CSP Gen II in CyberSec to help get the NiteSec requirement
+
 type AugSet = { [faction: string]: Iterable<string> };
 const aug_sets: AugSet[] = [{
     "Tian Di Hui": new Set([
@@ -127,7 +130,7 @@ export async function main(ns: NS) {
     ns.disableLog("ALL");
 
     let player = ns.getPlayer();
-    let reset = (ns.args.length == 2 && ns.args[0] == "sfh" && ns.args[1] == "reset")
+    let reset = (ns.args.length == 2 && ns.args[0] == "sfh" && ns.args[1] === true)
         || !globalThis.sfh?.player || sfh.reset
         || sfh.time?.reset > player.playtimeSinceLastAug;
     if (!reset) { globalThis.sfh = new SFH(globalThis.sfh); return; }
@@ -153,29 +156,89 @@ export async function main(ns: NS) {
         can:     permissions,
         x:       {} as typeof sfh.x,
         ui:      {} as typeof sfh.ui,
-        time:    { now: 0, reset: player.playtimeSinceLastAug,
+        time:    { now: 0, period: 0, reset: player.playtimeSinceLastAug,
             bitnode: player.playtimeSinceLastBitnode, total: player.totalPlaytime },
         bitnode: {} as typeof sfh.bitnode,
         player:  {} as typeof sfh.player,
         state:   {} as typeof sfh.state,
         money:   {} as typeof sfh.money,
+
+        gains:   {
+            total: { money: 0, karma: 0, rep: 0,
+                hac_exp: 0, str_exp: 0, def_exp: 0, dex_exp: 0, agi_exp: 0, cha_exp: 0, int_exp: 0 },
+            scripts: { money: 0, karma: 0, rep: 0,
+                hac_exp: 0, str_exp: 0, def_exp: 0, dex_exp: 0, agi_exp: 0, cha_exp: 0, int_exp: 0 },
+            work: { money: 0, karma: 0, rep: 0,
+                hac_exp: 0, str_exp: 0, def_exp: 0, dex_exp: 0, agi_exp: 0, cha_exp: 0, int_exp: 0 },
+            sleeves: { money: 0, karma: 0, rep: 0,
+                hac_exp: 0, str_exp: 0, def_exp: 0, dex_exp: 0, agi_exp: 0, cha_exp: 0, int_exp: 0 },
+            hacknet: { money: 0, karma: 0, rep: 0,
+                hac_exp: 0, str_exp: 0, def_exp: 0, dex_exp: 0, agi_exp: 0, cha_exp: 0, int_exp: 0 },
+            gang: { money: 0, karma: 0, rep: 0,
+                hac_exp: 0, str_exp: 0, def_exp: 0, dex_exp: 0, agi_exp: 0, cha_exp: 0, int_exp: 0 },
+            corp: { money: 0, karma: 0, rep: 0,
+                hac_exp: 0, str_exp: 0, def_exp: 0, dex_exp: 0, agi_exp: 0, cha_exp: 0, int_exp: 0 },
+        },
+
         goal:    { type: null, desc: "", money: 0, money_next: 0, money_total: 0,
             augs: [], work: [], orgs: new Set(),
             hac: 0, str: 0, def: 0, dex: 0, agi: 0, cha: 0, int: 0,
-            corp: false, corp_ticks: 0 },
+            times: { money: 0, karma: 0, rep: 0, hac: 0, str: 0, def: 0, dex: 0, agi: 0, cha: 0, int: 0 },
+            time: 0, corp: false, corp_ticks: 0
+        },
+
+        netstat: { ready: true, scp_args: [] },
         network: {},
-        procs:   { set: new Set(), pools: [], home: null, corp: null,
+
+        procs:   { set: new Set(), pools: [], home: null,
             sharing: new Set(), exp: new Set(), stanek: new Set(),
-            backdoor: null, contract: null, total_ram: 0, free_ram: 0, max_ram: 0 },
-        hacking: { params: {}, list: [], min_dps: 0, scripts: 0, batch_time: 0, dps: 0, exp: 0 },
-        sleeves: { money_rate: 0, karma_rate: 0, skill_rate: 0, str_rate: 0, def_rate: 0, dex_rate: 0, agi_rate: 0, cha_rate: 0, int_rate: 0 },
-        trading: { stocks: {}, list: [], init: false, time: 0, dps: 0,
-            spent: 0, sell: 0, total_spent: 0, total_sold: 0 },
-        hnet:    { hashes: 0, capacity: 0, prod: 0, dps: 0 },
-        //gang:    { state: "train", name: "none", size: 0, train: 0, time: 0, dps: 0, clash: 0, rep: 0, training: [] },
-        gang:    {} as any,
-        corp:    { public: false, wait_ticks: 0, divisions: new Set(), funds: 0, profit: 0,
-            round: 0, offer: 0, div_frac: 0, dividends: 0, research: 0, res_rate: 0, products: [] }
+            backdoor: null, total_ram: 0, free_ram: 0, max_pool: 0 },
+
+        hacking: { params: {}, list: [], min_dps: 0, scripts: 0, max_scripts: 10000 },
+
+        sleeves: [],
+
+        trading: {
+            stocks: {}, list: [], init: false, time: 0, dps: 0,
+            spent: 0, sell: 0, total_spent: 0, total_sold: 0
+        },
+
+        hnet: { hashes: 0, capacity: 0, prod: 0, study_mult: 1, train_mult: 1 },
+
+        gang: {
+            state: "respect", members: Array.from({ length: 12 }, () =>
+                ({ ready: false, task: "Train Combat", com_time: 0, hac_time: 0, cha_time: 0 })),
+            prev_times: { time: 0, rspct: 0, power: 0, money: 0 }, can_ascend: true, train_time: 0,
+            name: "", size: 0, time: 0, clash: 0, aug_rep: 0
+        },
+
+        corp: {
+            reserve: false, ready: false, state: 5, public: false, wait_ticks: 0, divisions: new Set(),
+            funds: 0, profit: 0, round: 0, offer: 0, div_frac: 0, dividends: 0,
+            A: { exists: false, adverts: 0,
+                office: {
+                    ["Sector-12"]: { warehouse: false, employees: 0 },
+                    ["Aevum"]:     { warehouse: false, employees: 0 },
+                    ["Volhaven"]:  { warehouse: false, employees: 0 },
+                    ["Chongqing"]: { warehouse: false, employees: 0 },
+                    ["New Tokyo"]: { warehouse: false, employees: 0 },
+                    ["Ishima"]:    { warehouse: false, employees: 0 },
+                }
+            },
+            T: { exists: false, adverts: 0, research: 0, res_rate: 0,
+                office: {
+                    ["Sector-12"]: { warehouse: false, employees: 0 },
+                    ["Aevum"]:     { warehouse: false, employees: 0 },
+                    ["Volhaven"]:  { warehouse: false, employees: 0 },
+                    ["Chongqing"]: { warehouse: false, employees: 0 },
+                    ["New Tokyo"]: { warehouse: false, employees: 0 },
+                    ["Ishima"]:    { warehouse: false, employees: 0 },
+                },
+                products: []
+            }
+        },
+
+        stanek: { width: 0, height: 0 }
     });
     sfh.getBitburnerInternals();
 
@@ -185,7 +248,7 @@ export async function main(ns: NS) {
     sfh.bitnode = {
         number: player.bitNodeN,
         sf:     Array(20).fill(0),
-        mult: {
+        mults: {
             hac:             bn?.HackingLevelMultiplier     ?? 1,
             str:             bn?.StrengthLevelMultiplier    ?? 1,
             def:             bn?.DefenseLevelMultiplier     ?? 1,
@@ -289,27 +352,32 @@ export async function main(ns: NS) {
     }
 
     sfh.state.factions  = {};
-    sfh.state.companies = {};
-    for (const faction in data.factions) {
-        const favour = ns.singularity.getFactionFavor(faction);
-        const joined = player.factions.includes(faction);
-        sfh.state.factions[faction] = { name: faction, faction: true, joined, finished: false,
-            augs: new Set(), favour, rep: 0 };
+    for (const faction of Object.values(data.factions)) {
+        const favour = ns.singularity.getFactionFavor(faction.name);
+        const joined = player.factions.includes(faction.name);
+
+        sfh.state.factions[faction.name] = {
+            name: faction.name, faction: true, joined, finished: false,
+            augs: Object.assign(new Set<string>(), { all: new Set<string>() }), favour, rep: 0
+        };
        
-        const hostname = data.factions[faction].server;
-        if (hostname) { sfh.state.factions[faction].node = sfh.network[hostname]; }
+        //const hostname = data.factions[faction].server;
+        //if (hostname) { sfh.state.factions[faction].server = sfh.network[hostname]; }
+    }
 
-        if (data.factions[faction].company) {
-            const company = data.factions[faction].company as string;
-            const joined  = company in player.jobs;
-            const favour  = ns.singularity.getCompanyFavor(company);
-            sfh.state.companies[company] = { name: company, faction: false, joined, finished: false,
-                augs: new Set(), favour, rep: 0 };
+    sfh.state.companies = {};
+    for (const company of Object.values(data.companies)) {
+        const favour = ns.singularity.getCompanyFavor(company.name);
+        const joined = company.name in player.jobs;
 
-            if (hostname) { sfh.state.companies[company].node = sfh.network[hostname]; }
+        sfh.state.companies[company.name] = {
+            name: company.name, faction: false, joined, finished: false,
+            augs: Object.assign(new Set<string>(), { all: new Set<string>() }), favour, rep: 0
+        };
 
-            sfh.state.factions[faction].dual  = company;
-            sfh.state.companies[company].dual = faction;
+        if (company.faction) {
+            sfh.state.companies[company.name].dual = company.faction;
+            sfh.state.factions[company.faction].dual = company.name;
         }
     }
 
@@ -317,11 +385,6 @@ export async function main(ns: NS) {
     sfh.state.goto = null;
     sfh.state.city = player.city as City;
     sfh.state.continent = null;
-
-    sfh.state.hac_rate = 0;
-    sfh.state.hac_time = 0;
-    sfh.state.money_rate = 0;
-    sfh.state.money_time = 0;
 
     const all_augs = new Set<{ org: Org, name: string }>();
     for (const set of aug_sets) {
@@ -350,7 +413,7 @@ export async function main(ns: NS) {
                     sfh.state.have_goal = true;
                     if (!sfh.state.augs.queued.has(aug)) {
                         this_augs.push(aug);
-                        max_rep = Math.max(max_rep, data.augs[aug].rep * sfh.player.mult.aug_rep);
+                        max_rep = Math.max(max_rep, data.augs[aug].rep * sfh.player.mults.aug_rep);
                     }
                 }
             }
@@ -410,21 +473,28 @@ export async function main(ns: NS) {
     sfh.money.total = player.money;
     sfh.money.frac  = {} as any;
     sfh.money.spent = {} as any;
-    sfh.money.can_train = false;
+    sfh.money.can_class = false;
 
     const money_fracs: typeof sfh.money.frac = {
         goal:    (sfh.bitnode.number === 8 ? 0.05 : Number.POSITIVE_INFINITY),
         upgrade: (sfh.bitnode.number === 8 ? 0.01 : 0.25),
         program: 0.001,
         cluster: (sfh.bitnode.number === 8 ? 0.01 : 0.15),
-        hacknet: Math.min(sfh.player.mult.hacknet_prod, 1) * 0.1,
+        hacknet: Math.min(sfh.player.mults.hacknet_prod, 1) * 0.1,
         stocks:  (sfh.bitnode.number === 8 ? 0.75 : 0.05),
-        gang:    Math.min(sfh.player.mult.gang_softcap, 1) * 0.05,
+        gang:    Math.min(sfh.player.mults.gang_softcap, 1) * 0.05,
+        sleeves: (sfh.bitnode.number === 8 ? 0.01 : 0.15),
     };
 
     for (const type of (Object.keys(money_fracs) as (keyof typeof money_fracs)[])) {
         sfh.money.frac[type]  = money_fracs[type];
         sfh.money.spent[type] = 0;
+    }
+
+    for (const type of (Object.keys(sfh.gains) as (keyof typeof sfh.gains)[])) {
+        for (const key of (Object.keys(sfh.gains[type]) as (keyof typeof sfh.gains.total)[])) {
+            sfh.gains[type][key] = 0;
+        }
     }
 
     sfh.uiCreate(ns);

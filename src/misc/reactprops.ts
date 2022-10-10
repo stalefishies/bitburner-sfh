@@ -1,21 +1,8 @@
-//const props = div[Object.keys(div)[1]];
-//if (props?.children?.props?.[name]) {
-//    this.bb[name] = props.children.props[name];
-//    break find_prop;
-//} else if (Array.isArray(props?.children)) {
-//    for (let child of props.children) {
-//        if (child?.props?.[name]) {
-//            this.bb[name] = child.props[name];
-//            break find_prop;
-//        }
-//    }
-//}
-
-type Props = { children: Child | Child[]; }
+type Props = { children: Child | Child[]; } & { [key: string]: any };
 type Child = { props: Props }
 
 export async function main(ns: NS) {
-    if (ns.args.length > 0) { await ns.sleep(Number(ns.args[0])); }
+    if (ns.args.length > 0) { await ns.sleep(Number(ns.args[0] ?? 0)); }
 
     const found: { [name: string]: any[] } = {};
 
@@ -25,27 +12,21 @@ export async function main(ns: NS) {
     for (const div of eval("document").querySelectorAll("div")) {
         await ns.sleep(0);
 
-        let props = null;
         for (const key of Object.keys(div)) {
             if (key.startsWith("__reactProps")) {
-                props = div[key];
-                break;
+                const props = div[key];
+                if (props?.children) {
+                    queue.push(props);
+                    seen.add(props);
+                }
             }
         }
-
-        if (props == null || props.children == null) { continue; }
-        queue.push(props);
-        seen.add(props);
     }
 
-    while (queue.length > 0) {
-        const props = queue.shift()!;
-        if (props == null) { continue; }
-
-        for (const key of Object.keys(props)) {
-            const prop = props[key as keyof typeof props];
-            if (prop == null || typeof prop === "string" || typeof prop === "number"
-                || typeof prop === "boolean") { continue; }
+    for (let props; props = queue.shift(); ) {
+        for (const [key, prop] of Object.entries(props)) {
+            if (key === "children" || prop == null || typeof prop === "string"
+                || typeof prop === "number" || typeof prop === "boolean") { continue; }
 
             if (!(key in found)) { found[key] = []; }
             found[key].push(prop);
@@ -59,9 +40,10 @@ export async function main(ns: NS) {
         }
     }
 
-    for (const name of Object.keys(found).sort((s, t) => s.localeCompare(t))) {
-        const props = found[name];
-
+    let total = 0;
+    for (const [name, props] of Object.entries(found).sort((s, t) => s[0].localeCompare(t[0]))) {
+        total += props.length;
         ns.tprintf("%20s %3d %s", name, props.length, typeof props[0]);
     }
+    ns.tprintf("%20s %3d", "TOTAL", total);
 }

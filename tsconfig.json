@@ -12,6 +12,7 @@
         "sfh":     ["./src/types/SFH"],
         "/sfh/*":  ["./src/sfh/*"],
         "/ui/*":   ["./src/ui/*"],
+        "/data/*": ["./src/data/*"],
         "/misc/*": ["./src/misc/*"],
         "/bin/*":  ["./src/bin/*"]
     },

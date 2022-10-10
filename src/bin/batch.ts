@@ -1,180 +1,207 @@
 export async function main(ns: NS) {
     ns.disableLog("ALL");
 
-    const target = sfh.network[ns.args[0] as string];
+    const target = sfh.network[String(ns.args[0])];
     if (target == null) { throw new Error(`Trying to batch invalid target ${ns.args[0]}`); }
 
-    const job = sfh.hacking.params[target.name]?.job;
-    if (job == null) {
-        throw new Error(`Could not get batch job for ${target.name}`);
-    } else if (job.type != "batch") {
-        throw new Error(`Tried to run batch with job type ${job.type} for ${target.name}`);
-    } else if (job.procs.size != 1) {
-        throw new Error(`Tried to run batch with ${job.procs.size} procs attached (expected 1)`);
+    type Params = SFH["hacking"]["params"][""]["batch"] & { proc: Required<Proc> };
+    const params = sfh.hacking.params[target.name]?.batch as Params;
+
+    if (params == null) {
+        throw new Error(`Could not get batch params for ${target.name}`);
+    } else if (params.proc == null) {
+        throw new Error(`Tried to run /bin/batch.js on ${target.name} without proc attached`);
     }
 
-    const [proc] = job.procs;
-    if (proc.pids == null || proc.alloc == null) {
-        throw new Error("Tried to run batch with no PID set or alloc table");
-    } else if (proc.pids.size !== 0) {
-        throw new Error(`Tried to run batch with ${proc.pids.size} PIDs attached to the proc (expected 0)`);
+    const { t0, period, kW, kG, kH, threads, proc, delay, running } = params;
+    let   hac    = 0;
+    const hac_lo = params.hac[0];
+    const hac_hi = params.hac[1];
+
+    const k       = [kH, kW, kG, kW];
+    const scripts = ["/bin/hack.js", "/bin/weak.js", "/bin/grow.js", "/bin/weak.js"];
+
+    function getScript(i: number, offset = 0) {
+        return running[i][(params.batch + offset) % k[i]];
     }
 
-    const pids = Array.from(Array(job.depth), () => Array(4).fill(0));
+    function killScript(i: number, offset = 0) {
+        const script = getScript(i, offset);
+
+        if (script.pid > 0) {
+            ns.kill(script.pid);
+            proc.pids!.delete(script.pid);
+            ++params.pools[i][script.host].free;
+        }
+
+        script.host = "";
+        script.pid  = 0;
+    }
+
     const killAllScripts = function() {
-        for (let index = 0; index < pids.length; ++index) {
-            for (let i = 0; i < 4; ++i) { ns.kill(pids[index][i]); }
+        for (let i = 0; i < 4; ++i) {
+            for (let index = 0; index < running[i].length; ++index) {
+                const script = running[i][index];
+
+                if (script.pid > 0) {
+                    ns.kill(script.pid);
+                    ++params.pools[i][script.host].free;
+                }
+
+                script.host = "";
+                script.pid  = 0;
+            }
         }
 
         proc.pids!.clear();
     }
-    
-    const hosts = job.hosts;
-    if (hosts.length != job.depth) {
-        throw new Error(`Tried to run batch with ${hosts.length} hosts (expected ${job.depth})`);
+
+    function scriptRun(i: number, index: [number, number, number, number]) {
+        let host = "";
+        for (const [this_host, { free }] of Object.entries(params.pools[i])) {
+            if (free > 0) { host = this_host; break; }
+        }
+
+        if (host != "") {
+            --params.pools[i][host].free;
+            return host;
+        }
     }
 
-    const kH = Math.ceil(target.tH / job.period);
-    const kG = Math.ceil(target.tG / job.period);
+    //const log = function(...args: any[]) {
+    //    ns.print("\x1B[37m" + params.batch.toFixed(0).padStart(5) + "\x1B[0m " + sfh.sprint(...args));
+    //}
 
-    const delay = [
-        job.depth * job.period - 4 * job.t0 - target.tH,
-        job.depth * job.period - 3 * job.t0 - target.tW,
-        job.depth * job.period - 2 * job.t0 - target.tG,
-        job.depth * job.period - 1 * job.t0 - target.tW
-    ];
-
-    let error_value = 0;
-    const error_max = 100;
-
-    const time_begin = performance.now();
+    const time_epoch = performance.now();
     ns.print(`Script starting at ${new Date(Date.now()).toLocaleTimeString()}`);
     ns.print(`First batch due at ${new Date(Date.now()
-        + job.depth * job.period - 4 * job.t0).toLocaleTimeString()}`);
+        + kW * period - 4 * t0).toLocaleTimeString()}`);
 
-    let ending    = false;
-    let max_batch = Infinity;
-    for (let batch = 0; batch < max_batch; ++batch) {
-        const index = batch % job.depth;
+    for (params.batch = 0;; ++params.batch) {
+        const batch = params.batch;
 
-        const batch_begin = time_begin + batch * job.period;
-        await ns.sleep(batch_begin - performance.now());
-        const batch_lag = performance.now() - batch_begin;
+        const time_begin = time_epoch + batch * period;
+        await ns.sleep(time_begin - performance.now());
+        const time_delay = performance.now() - time_begin;
+
+        params.log.push({
+            batch, hac: sfh.player.hac, quit: false,
+            loop: time_delay, money: 1, level: 0,
+            killed:   [false, false, false, false],
+            late:     [false, false, false, false],
+            dispatch: [false, false, false, false],
+        });
+        const log = params.log[params.log.length - 1];
         
-        let dispatch = true;
-        if (batch_lag >= job.t0) {
-            ns.print(ns.sprintf("WARN: %4d loop started %dms late", batch, batch_lag));
-            error_value += 3;
-            dispatch = false;
-        }
+        let dispatch = (time_delay < t0);
 
         for (let i = 0; i < 4; ++i) {
-            if (pids[index][i] != 0) {
-                if (ns.isRunning(pids[index][i])) {
-                    ns.print(ns.sprintf("WARN: %4d %d finished late", batch, i));
-                    ns.kill(pids[index][i]);
-                    error_value += 1;
-                }
-
-                proc.pids.delete(pids[index][i]);
-                pids[index][i] = 0;
+            const pid = getScript(i).pid;
+            if (pid == 0) {
+                log.killed[i] = true;
+            } else if (ns.isRunning(pid)) {
+                log.late[i] = true;
             }
+
+            killScript(i);
         }
 
-        if (job.quit) {
-            ns.print(ns.sprintf("ERROR: %4d Received quit message", batch));
+        if (params.quit) {
+            log.quit = true;
+            killAllScripts();
+            break;
+        }
+
+        if (sfh.player.hac != hac) {
+            hac = sfh.player.hac;
+
+            const hack_time = ns.formulas.hacking.hackTime(target.server, sfh.player.player);
+            const grow_time = 3.2 * hack_time;
+            const weak_time = 4.0 * hack_time;
+
+            delay[0] = kH * period - 4 * t0 - hack_time,
+            delay[1] = kW * period - 3 * t0 - weak_time,
+            delay[2] = kG * period - 2 * t0 - grow_time,
+            delay[3] = kW * period - 1 * t0 - weak_time
+        }
+
+        if (hac < hac_lo || hac > hac_hi) {
+            log.quit = true;
             killAllScripts();
             break;
         }
 
         target.cur_money = ns.getServerMoneyAvailable(target.name);
         target.cur_level = ns.getServerSecurityLevel(target.name);
-        const next_index = (index + 1) % job.depth;
 
         if (target.cur_level > target.level) {
-            ns.print(ns.sprintf("WARN: %4d Security level raised by %.3f", batch, target.cur_level - target.level));
-            error_value += 5;
+            log.level = target.cur_level - target.level;
 
-            // To recover, kill the hack and grow about to land
-            ns.kill(pids[next_index][0]);
-            ns.kill(pids[next_index][2]);
+            // Kill the hack and grow about to land
+            killScript(0, 1);
+            killScript(2, 1);
 
-            // Kill hacks/grows in batches that would be affected
-            ns.kill(pids[(index + kH) % job.depth][0]);
-            ns.kill(pids[(index + kG) % job.depth][0]);
-            ns.kill(pids[(index + kG) % job.depth][2]);
-
-            // Skip the upcoming dispatch since the weakens would be affected
+            // Skip the upcoming dispatch since the security is raised
             dispatch = false;
         } else if (target.cur_money < target.money) {
-            ns.print(ns.sprintf("WARN: %4d Money too low, at %.1f%%", batch, 100 * target.cur_money / target.money));
-            error_value += 2;
-            
-            // To recover, kill the hack about to land
-            ns.kill(pids[next_index][0]);
+            log.money = target.cur_money / target.money;
+
+            // Kill the hack about to land
+            killScript(0, 1);
         } else {
-            // We didn't need to recover, so if there's no hack coming up, kill the next batch about to land
-            if (pids[next_index][0] == 0) {
-                for (let i = 1; i < 4; ++i) {
-                    ns.kill(pids[next_index][i]);
-                    pids[next_index][i] = 0;
+            let have_hwgw = false;
+            for (let i = 0; i < kH; ++i) {
+                if (getScript(0, i).pid > 0 && getScript(1, i).pid > 0
+                    && getScript(2, i).pid > 0 &&getScript(3, i).pid > 0)
+                { have_hwgw = true; break; }
+
+                killScript(0, i); killScript(1, i); killScript(2, i); killScript(3, i);
+            }
+
+            if (!have_hwgw) {
+                for (let i = kH; i < kG; ++i) {
+                    if (getScript(1, i).pid > 0 && getScript(2, i).pid > 0
+                        && getScript(3, i).pid > 0) { break; }
+
+                    killScript(1, i); killScript(2, i); killScript(3, i);
                 }
             }
-
-            error_value = Math.max(error_value - 1, 0);
-        }
-
-        // If our hacking skill increases, kill any batch with a sleeping script and set us up to end
-        if (ending) {
-            job.scripts -= 4;
-            dispatch = false;
-        } else if (sfh?.player?.hac != job.skill) {
-            ns.print(ns.sprintf("ERROR: %4d Hacking skill increased to %d", batch, sfh.player.hac));
-
-            let end_width = 0;
-            for (let offset = 0; offset < kH; ++offset) {
-                if (pids[(index + offset) % job.depth][0] > 0) { end_width = offset + 1; }
-            }
-
-            for (let offset = end_width; offset < job.depth; ++offset) {
-                for (let i = 0; i < 4; ++i) { ns.kill(pids[(index + offset) % job.depth][i]); }
-            }
-
-            ending       = true;
-            max_batch    = batch + end_width;
-            job.end_time = time_begin + (max_batch - 1) * job.period + (Date.now() - performance.now());
-            job.scripts  = (end_width - 1) * 4 + 1;
-            dispatch     = false;
-
-            ns.print(ns.sprintf("WARN:  %4d Finishing %d batches (until %s)",
-                batch, end_width, new Date(job.end_time).toLocaleTimeString()));
         }
 
         if (dispatch) {
-            let dispatch_error = false;
-
             for (let i = 0; i < 4; ++i) {
-                const script = ["/bin/hack.js", "/bin/weak.js", "/bin/grow.js", "/bin/weak.js"][i];
-                const event_begin = batch_begin + delay[i];
-                pids[index][i] = ns.exec(script, hosts[index][i], job.threads[i], target.name, event_begin);
+                let host = "";
+                for (const [this_host, { free }] of Object.entries(params.pools[i])) {
+                    if (free > 0) { host = this_host; break; }
+                }
+                if (!host) { continue; }
 
-                if (pids[index][i] == 0) {
-                    ns.print(ns.sprintf("WARN: %4d Could not run %d on %s", batch, i, hosts[index][i]));
-                    error_value += 20;
-                    dispatch_error = true;
-                    break;
-                } else {
-                    proc.pids.add(pids[index][i]);
+                if (i == 0) {
+                    if (getScript(1, kH).pid <= 0 || getScript(2, kH).pid <= 0
+                        || getScript(3, kH).pid <= 0) { continue; }
+                } else if (i == 2) {
+                    if (getScript(3, kG).pid <= 0) { continue; }
+                }
+
+                const pid = ns.exec(scripts[i], host, threads[i],
+                    target.name, time_begin + delay[i]);
+
+                if (pid > 0) {
+                    log.dispatch[i] = true;
+                    const script = getScript(i);
+
+                    script.pid  = pid;
+                    script.host = host;
+
+                    --params.pools[i][host].free;
+                    proc.pids.add(pid);
                 }
             }
 
-            if (dispatch_error) { for (let i = 0; i < 4; ++i) { ns.kill(pids[index][i]); } }
-        }
-
-        if (error_value > error_max) {
-            ns.print(ns.sprintf("ERROR: %4d Too many errors, giving up", batch));
-            killAllScripts();
-            break;
+            if (getScript(1).pid > 0 && getScript(3).pid <= 0) {
+                killScript(1);
+                log.dispatch[1] = false;
+            }
         }
     }
 }

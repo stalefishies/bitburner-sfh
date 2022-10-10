@@ -17,9 +17,9 @@ export function uiUpdate() {
 
     const updateStatExp = (index: number, name: keyof Skills) => {
         const plr = sfh.player as unknown as { [key: string]: any };
-        let level = typeof plr[name]           === "number" ? plr[name]           : 1;
-        let exp   = typeof plr[name + "_exp"]  === "number" ? plr[name + "_exp"]  : 0;
-        let mult  = typeof plr[name + "_mult"] === "number" ? plr[name + "_mult"] : 1;
+        let level = typeof plr[name]          === "number" ? plr[name]          : 1;
+        let exp   = typeof plr[name + "_exp"] === "number" ? plr[name + "_exp"] : 0;
+        let mult  = typeof plr.mults[name]    === "number" ? plr.mults[name]    : 1;
 
         const raw = (Math.log(exp + 534.5) * 32 - 200) * mult;
         const exp_lo = Math.max(Math.exp((level / mult + 200) / 32) - 534.5, 0);
@@ -44,37 +44,40 @@ export function uiUpdate() {
         }
     }
 
-    let rep_cur    = 0;
-    let rep_goal   = Number.POSITIVE_INFINITY;
-    let rep_time   = Number.POSITIVE_INFINITY;
+    let rep_cur  = 0;
+    let rep_goal = Number.POSITIVE_INFINITY;
+    let rep_time = Number.POSITIVE_INFINITY;
 
-    if (sfh.state.work?.org != null) {
-        const org = sfh.state.work.org;
-        rep_cur = org.rep;
+    if (sfh.state.work?.type === "faction" || sfh.state.work?.type === "company") {
+        const org = (sfh.state.work.type === "faction"
+            ? sfh.state.factions[sfh.state.work.loc]
+            : sfh.state.companies[sfh.state.work.loc]);
+        rep_cur = org?.rep ?? 0;
 
         for (const work of sfh.goal.work) {
-            if (work.org.name == org.name) {
+            if (work.org.name == sfh.state.work.loc) {
                 rep_goal = work.rep;
                 break;
             }
         }
 
-        rep_time = (rep_goal - rep_cur) / sfh.state.work.rep_rate;
+        const rate = sfh.gains.total.rep ?? 0;
+        if (rate > 0) { rep_time = Math.max((rep_goal - rep_cur) / rate * 1000, 0); }
     }
 
-    updateStatGoal(0, sfh.player.money, sfh.goal.money, (m) => sfh.format("{m}", m));
-    updateStatTime(0, sfh.state.money_time);
+    updateStatGoal(0, sfh.money.curr, sfh.goal.money, (m) => sfh.format("{m}", m));
+    updateStatTime(0, sfh.goal.times.money);
 
     if (sfh.player.hac < sfh.goal.hac) {
-        const mult     = sfh.player.mult.hac;
+        const mult     = sfh.player.mults.hac;
         const goal_exp = Math.max(Math.exp((Math.floor(sfh.goal.hac) / mult + 200) / 32) - 534.5, 0);
         const string   = sfh.player.hac.toFixed(0) + " / " + sfh.goal.hac.toFixed(0);
 
         updateStat(1, string, sfh.player.hac_exp, 0, goal_exp);
-        updateStatTime(1, sfh.state.hac_time);
+        updateStatTime(1, sfh.goal.times.hac);
     } else {
         updateStatExp(1, "hac");
-        updateStatTime(1, sfh.state.hac_time);
+        updateStatTime(1, sfh.goal.times.hac);
     }
 
     updateStatGoal(2, rep_cur, rep_goal);
@@ -156,7 +159,7 @@ export function uiUpdate() {
 
         const work = sfh.state.work;
         sfh.ui.type.innerText = type_tr[work.type] ?? work.type ?? "null";
-        sfh.ui.org.innerText  = org_tr[work.org?.name ?? ""] ?? work.org?.name ?? "--";
+        sfh.ui.org.innerText  = org_tr[work.loc] ?? work.loc ?? "--";
         sfh.ui.desc.innerText = desc_tr[work.desc] ?? work.desc ?? "--";
     } else {
         sfh.ui.type.innerText = "Not Working";
@@ -184,23 +187,24 @@ export function uiUpdate() {
     sfh.ui.stocks_profit.innerText = sfh.sprint("{13,m}",
         sfh.trading.total_sold + sfh.trading.sell - sfh.trading.total_spent);
 
-    if (false){//sfh.state.has_gang) {
+    if (sfh.state.has_gang) {
         const state = sfh.gang.state[0].toUpperCase() + sfh.gang.state.substring(1);
 
-        if (sfh.gang.state === "train") {
-            sfh.ui.gang_status.innerText = sfh.format("Gang: {} ({})", state, sfh.gang.train);
+        if (sfh.gang.train_time > sfh.time.now) {
+            sfh.ui.gang_status.innerText = sfh.format("Gang: {} ({})", state,
+                Math.round((sfh.gang.train_time - sfh.time.now) / 1000));
         } else if (sfh.gang.size < 12) {
             sfh.ui.gang_status.innerText = sfh.format("Gang: {} ({})", state, sfh.gang.size);
         } else {
             sfh.ui.gang_status.innerText = sfh.format("Gang: {} ({p})", state, sfh.gang.clash);
         }
 
-        sfh.ui.gang_dps.innerText = sfh.format("{m}/s", sfh.gang.dps);
+        sfh.ui.gang_dps.innerText = sfh.format("{m}/s", sfh.gains.gang.money);
         sfh.ui.gang_time.innerText = sfh.format("{t}", sfh.gang.time);
     } else {
-        const time = Math.max((54000 + sfh.player.karma) / sfh.sleeves.karma_rate * 1000, 0);
+        const time = Math.max((54000 + sfh.player.karma) / sfh.gains.total.karma * 1000, 0);
 
-        sfh.ui.gang_status.innerText = "gang ui disabled";//"No gang";
+        sfh.ui.gang_status.innerText = "No gang";
         sfh.ui.gang_dps.innerText    = sfh.format("Karma: {}", sfh.player.karma);
         sfh.ui.gang_time.innerText   = sfh.format("{t}", time);
     }
@@ -216,7 +220,7 @@ export function uiUpdate() {
         let product_name = null;
         let product_dev  = 0;
         let product_time = 0;
-        sfh.corp.products.forEach(function (p, i) {
+        sfh.corp.T.products.forEach(function (p, i) {
             if (p.development < 100 && p.development > product_dev) {
                 product_name = i.toFixed(0).padStart(3, "0");
                 product_dev  = p.development / 100;
@@ -237,7 +241,7 @@ export function uiUpdate() {
     } else {
         sfh.ui.corp_profit.innerText   = "No corporation";
 
-        const time = Math.max(150e9 - sfh.player.money, 0) / sfh.state.money_rate * 1000;
+        const time = Math.max(150e9 - sfh.money.curr, 0) / sfh.gains.total.money * 1000;
         if (time < 1e10) {
             sfh.ui.corp_progress.innerText = sfh.format("{t}", time);
         } else {

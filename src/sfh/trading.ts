@@ -55,8 +55,8 @@ function init(ns: NS) {
 
         stock.symbol = symbol;
         stock.org    = data.org;
-        stock.node   = (data.node ? sfh.network[data.node] : null);
-        if (stock.node != null) { stock.node.symbol = symbol; }
+        stock.server = (data.node ? sfh.network[data.node] : null);
+        if (stock.server != null) { stock.server.symbol = symbol; }
 
         stock.ask_price = ns.stock.getAskPrice(symbol);
         stock.bid_price = ns.stock.getBidPrice(symbol);
@@ -254,12 +254,6 @@ async function sfhMain(ns: NS) {
             ns.stock[stock.short ? "sellShort" : "sellStock"](stock.symbol, stock.owned);
             trading.total_sold += stock.sell;
 
-            //sfh.print("    {t} SELL {} {5} {8,d} {0,m} {0,m} {c*,0,m} {5,p} {4,!}{cy}{cr}", Date.now(),
-            //    (stock.short ? "S" : "L"), stock.symbol, stock.owned, stock.spent, stock.sell,
-            //    (stock.sell < stock.spent ? "r" : "c"), Math.abs(stock.sell - stock.spent), stock.sell / stock.spent,
-            //    stock.history.slice(0,  len.N).map((x: number) => (x == 1 ? '┸' : '─')).join(""),
-            //    stock.history.slice(len.N, 50).map((x: number) => (x == 1 ? '┸' : '─')).join(""));
-
             sfh.money.spent.stocks = Math.max(sfh.money.spent.stocks - stock.sell, 0);
             stock.owned = 0;
             stock.spent = 0;
@@ -274,8 +268,9 @@ async function sfhMain(ns: NS) {
 
         let max_spend = Math.min(0.2 * sfh.money.frac.stocks * sfh.money.total,
             sfh.money.frac.stocks * sfh.money.total - sfh.money.spent.stocks) - commission;
+        const prev_max = max_spend;
         if (sfh.goal.money_next > 0 && sfh.money.curr >= sfh.goal.money_next) {
-            max_spend = Math.min(max_spend, sfh.goal.money_next - sfh.money.curr);
+            max_spend = Math.min(max_spend, sfh.money.curr - sfh.goal.money_next);
         }
         if (max_spend < 10e6) { continue; }
 
@@ -287,11 +282,6 @@ async function sfhMain(ns: NS) {
             trading.total_spent += max * stock.ask_price + commission;
             trading.spent       += max * stock.ask_price + commission;
 
-            //sfh.print("    {t}  BUY L {5} {8,d} {0,m} {7,3,f} {7,3,f} {18,!}{cy}{}", Date.now(),
-            //    stock.symbol, max, max * stock.ask_price + commission, Math.log2(stock.flip_s), Math.log2(stock.flip),
-            //    stock.history.slice(0,            len.N).map((x: number) => (x == 1 ? '┸' : '─')).join(""),
-            //    stock.history.slice(len.N, stock.length).map((x: number) => (x == 1 ? '┸' : '─')).join(""));
-
             updateOwned(ns, stock);
         } else if (stock.prob <= 0.4) {
             const max = Math.min(Math.floor(max_spend / stock.ask_price), 0.8 * stock.max - stock.owned);
@@ -300,11 +290,6 @@ async function sfhMain(ns: NS) {
 
             trading.total_spent += max * stock.bid_price + commission;
             trading.spent       += max * stock.bid_price + commission;
-
-            //sfh.print("    {t}  BUY S {5} {8,d} {0,m} {7,3,f} {7,3,f} {18,!}{cy}{}", Date.now(),
-            //    stock.symbol, max, max * stock.bid_price + commission, Math.log2(stock.flip_s), Math.log2(stock.flip),
-            //    stock.history.slice(0,            len.N).map((x: number) => (x == 1 ? '┸' : '─')).join(""),
-            //    stock.history.slice(len.N, stock.length).map((x: number) => (x == 1 ? '┸' : '─')).join(""));
 
             updateOwned(ns, stock);
         }
@@ -316,14 +301,14 @@ export async function main(ns: NS) {
 
     if (!sfh.trading.init) { init(ns); }
 
-    sfh.print("{5,!STOCK} {1,!} {11,!$ LIQUID} {6,!PROFIT} | "
+    sfh.print("{4,!SYMB} {1,!} {11,!$LIQUID} {6,!PROFIT} | "
         + "{4,!SPRD} {5,!TICKS} {6,!MULT} {5,!PROB} | "
         + "{5,!FOREC} {7,!FLIP} {3,!LEN} TICKER", "");
 
     for (const stock of sfh.trading.list) {
         const mult = sfh.sprint("{5,2,f}", (stock.mult - 1) * 100) + "%";
 
-        sfh.print("{5} {1} {11,m} {6,p} | {4,p} {5,1,f} {c*,6} {c*,5,p} | {c*,5,p} {c*,7,3,f} {c*,3,d} {cy}{}{cr}",
+        sfh.print("{4,4} {1} {11,m} {6,p} | {4,p} {5,1,f} {c*,6} {c*,5,p} | {c*,5,p} {c*,7,3,f} {c*,3,d} {cy}{}{cr}",
             stock.symbol, stock.owned === 0 ? "" : (stock.short ? "S" : "L"),
             stock.sell, stock.owned === 0 ? 0 : stock.sell / stock.spent,
 

@@ -3,7 +3,7 @@ export async function main(ns: NS) {
     const money = (() => ns.getServerMoneyAvailable("home"));
 
     const hashRate = (l: number, r: number, c: number) =>
-        ns.formulas.hacknetServers.hashGainRate(l, 0, r, c, sfh.player.mult.hacknet_prod);
+        ns.formulas.hacknetServers.hashGainRate(l, 0, r, c, sfh.player.mults.hacknet_prod);
 
     let hacknet_prod = 0;
     for (let i = 0; i < ns.hacknet.numNodes(); ++i) {
@@ -12,140 +12,119 @@ export async function main(ns: NS) {
     }
 
     if (sfh.can.hnet) {
-        const hacknet_upgrades: [() => number, number, string, string?][] = [];
+        if (sfh.state.has_corp && sfh.corp.dividends < 1e12) {
+            let corp_funds = sfh.corp.funds < 0;
+            for (const div of ["A", "T"] as ("A" | "T")[]) {
+                if (corp_funds) { break; }
+                if (!sfh.corp[div].exists) { corp_funds = true; break; }
 
-        if (money() < sfh.goal.money && sfh.goal.money > 0) {
-            let level_target = "";
-            let level_dps    = 0;
-            let money_target = "";
-            let money_dps    = 0;
-
-            for (const params of sfh.hacking.list) {
-                if (params.job && params.job.dps > level_dps && params.target.level >= 10) {
-                    level_target = params.target.name;
-                    level_dps    = params.job.dps;
-                }
-
-                if (params.job && params.job.dps > level_dps && params.target.money <= 1e12) {
-                    money_target = params.target.name;
-                    money_dps    = params.job.dps;
+                for (const office of Object.values(sfh.corp[div].office)) {
+                    if (office.employees == 0 || !office.warehouse) {
+                        corp_funds = true;
+                        break;
+                    }
                 }
             }
 
-            if (level_dps > 0) {
-                hacknet_upgrades.push([function() {
-                    return (sfh.goal.money - money())
-                        * (1 / sfh.state.money_rate - 1 / (sfh.state.money_rate + 0.02 * level_dps));
-                }, 0, "Reduce Minimum Security", level_target]);
-            }
-
-            if (money_dps > 0) {
-                const new_time = (sfh.goal.money - money()) / (sfh.state.money_rate + 0.02 * money_dps);
-                hacknet_upgrades.push([function() {
-                    return (sfh.goal.money - money())
-                        * (1 / sfh.state.money_rate - 1 / (sfh.state.money_rate + 0.02 * money_dps));
-                }, 0, "Increase Maximum Money", money_target]);
-            }
-
-            hacknet_upgrades.push([function() {
-                return money() < sfh.goal.money ? 1e6 / sfh.state.money_rate : 0;
-            }, 0, "Sell for Money"]);
-        }
-
-        if (sfh.state.has_corp && sfh.corp.dividends < 1e30) {
-            if (sfh.corp.funds < 0) {
-                hacknet_upgrades.push([() => (sfh.corp.funds < 0 ? 1e9 / Math.max(sfh.corp.profit, 1) : 0),
-                    0, "Sell for Corporation Funds"]);
-            }
-
-            if (sfh.corp.res_rate > 0) {
-                hacknet_upgrades.push([() => 1e3 / sfh.corp.res_rate, 0, "Exchange for Corporation Research"]);
-            }
-        }
-
-        if ((sfh.goal.hac > 0 || sfh.goal.cha > 0) && sfh.state.work?.type === "university") {
-            let goal = 0;
-            let stat = 0;
-            let rate = 0;
-            let mult = 1;
-
-            if (sfh.state.work.desc === "taking a Management course"
-                || sfh.state.work.desc === "taking a Leadership course")
-            {
-                goal = sfh.goal.cha;
-                stat = sfh.player.cha;
-                rate = sfh.state.work.cha_rate;
-                mult = sfh.player.mult.cha_exp;
+            if (corp_funds) {
+                while (ns.hacknet.spendHashes("Sell for Corporation Funds"));
             } else {
-                goal = sfh.goal.hac;
-                stat = sfh.player.hac;
-                rate = sfh.state.work.skill_rate;
-                mult = sfh.player.mult.hac_exp;
+                while (ns.hacknet.spendHashes("Exchange for Corporation Research"));
+            }
+        } else {
+            const hacknet_upgrades: [() => number, number, string, string?][] = [];
+
+            if (money() < sfh.goal.money && sfh.goal.money > 0) {
+                hacknet_upgrades.push([function() {
+                    return money() < sfh.goal.money ? 1e6 / sfh.gains.total.money : 0;
+                }, 0, "Sell for Money"]);
             }
 
-            if (goal > stat && rate > 0) {
-                const stat_exp = mult * (32 * Math.log(stat + 534.5) - 200)
-                const goal_exp = mult * (32 * Math.log(goal + 534.5) - 200)
-                const old_time = (goal_exp - stat_exp) / rate;
-                const new_time = (goal_exp - stat_exp) / (1.2 * rate);
-                hacknet_upgrades.push([() => old_time - new_time, 0, "Improve Studying"]);
-            }
-        }
 
-        if ((sfh.goal.str > 0 || sfh.goal.def > 0 || sfh.goal.dex > 0 || sfh.goal.agi > 0)
-            && sfh.state.work?.type === "gym")
-        {
-            let stat = 0;
-            let goal = 0;
-            let rate = 0;
-            let mult = 1;
+            if ((sfh.goal.hac > 0 || sfh.goal.cha > 0) && sfh.state.work?.type === "university") {
+                let goal = 0;
+                let stat = 0;
+                let rate = 0;
+                let mult = 1;
 
-            if (sfh.state.work.desc === "training your strength at a gym") {
-                stat = sfh.player.str;
-                goal = sfh.goal.str;
-                rate = sfh.state.work.str_rate;
-                mult = sfh.player.mult.str_exp;
-            } else if (sfh.state.work.desc === "training your defense at a gym") {
-                stat = sfh.player.def;
-                goal = sfh.goal.def;
-                rate = sfh.state.work.def_rate;
-                mult = sfh.player.mult.def_exp;
-            } else if (sfh.state.work.desc === "training your dexterity at a gym") {
-                stat = sfh.player.dex;
-                goal = sfh.goal.dex;
-                rate = sfh.state.work.dex_rate;
-                mult = sfh.player.mult.dex_exp;
-            } else if (sfh.state.work.desc === "training your agility at a gym") {
-                stat = sfh.player.agi;
-                goal = sfh.goal.agi;
-                rate = sfh.state.work.agi_rate;
-                mult = sfh.player.mult.agi_exp;
+                if (sfh.state.work.desc === "taking a Management course"
+                    || sfh.state.work.desc === "taking a Leadership course")
+                {
+                    goal = sfh.goal.cha;
+                    stat = sfh.player.cha;
+                    rate = sfh.gains.total.cha_exp;
+                    mult = sfh.player.mults.cha_exp;
+                } else {
+                    goal = sfh.goal.hac;
+                    stat = sfh.player.hac;
+                    rate = sfh.gains.total.hac_exp;
+                    mult = sfh.player.mults.hac_exp;
+                }
+
+                if (goal > stat && rate > 0) {
+                    const stat_exp = mult * (32 * Math.log(stat + 534.5) - 200)
+                    const goal_exp = mult * (32 * Math.log(goal + 534.5) - 200)
+                    const old_time = (goal_exp - stat_exp) / rate;
+                    const new_time = (goal_exp - stat_exp) / (1.2 * rate);
+                    hacknet_upgrades.push([() => old_time - new_time, 0, "Improve Studying"]);
+                }
             }
 
-            if (goal > stat && rate > 0) {
-                const stat_exp = mult * (32 * Math.log(stat + 534.5) - 200)
-                const goal_exp = mult * (32 * Math.log(goal + 534.5) - 200)
-                const old_time = (goal_exp - stat_exp) / rate;
-                const new_time = (goal_exp - stat_exp) / (1.2 * rate);
-                hacknet_upgrades.push([() => old_time - new_time, 0, "Improve Gym Training"]);
+            if ((sfh.goal.str > 0 || sfh.goal.def > 0 || sfh.goal.dex > 0 || sfh.goal.agi > 0)
+                && sfh.state.work?.type === "gym")
+            {
+                let stat = 0;
+                let goal = 0;
+                let rate = 0;
+                let mult = 1;
+
+                if (sfh.state.work.desc === "training your strength at a gym") {
+                    stat = sfh.player.str;
+                    goal = sfh.goal.str;
+                    rate = sfh.gains.total.str_exp;
+                    mult = sfh.player.mults.str_exp;
+                } else if (sfh.state.work.desc === "training your defense at a gym") {
+                    stat = sfh.player.def;
+                    goal = sfh.goal.def;
+                    rate = sfh.gains.total.def_exp;
+                    mult = sfh.player.mults.def_exp;
+                } else if (sfh.state.work.desc === "training your dexterity at a gym") {
+                    stat = sfh.player.dex;
+                    goal = sfh.goal.dex;
+                    rate = sfh.gains.total.dex_exp;
+                    mult = sfh.player.mults.dex_exp;
+                } else if (sfh.state.work.desc === "training your agility at a gym") {
+                    stat = sfh.player.agi;
+                    goal = sfh.goal.agi;
+                    rate = sfh.gains.total.agi_exp;
+                    mult = sfh.player.mults.agi_exp;
+                }
+
+                if (goal > stat && rate > 0) {
+                    const stat_exp = mult * (32 * Math.log(stat + 534.5) - 200)
+                    const goal_exp = mult * (32 * Math.log(goal + 534.5) - 200)
+                    const old_time = (goal_exp - stat_exp) / rate;
+                    const new_time = (goal_exp - stat_exp) / (1.2 * rate);
+                    hacknet_upgrades.push([() => old_time - new_time, 0, "Improve Gym Training"]);
+                }
             }
-        }
 
-        if (hacknet_upgrades.length > 0 && (!sfh.state.has_corp || sfh.corp.public)) {
-            for (;;) {
-                for (const upgrade of hacknet_upgrades) { upgrade[1] = upgrade[0](); }
+            if (hacknet_upgrades.length > 0 && (!sfh.state.has_corp || sfh.corp.public)) {
+                for (;;) {
+                    for (const upgrade of hacknet_upgrades) { upgrade[1] = upgrade[0](); }
 
-                hacknet_upgrades.sort(function(a, b) {
-                    return b[1] / ns.hacknet.hashCost(b[2]) - a[1] / ns.hacknet.hashCost(a[2])
-                });
+                    hacknet_upgrades.sort(function(a, b) {
+                        return b[1] / ns.hacknet.hashCost(b[2]) - a[1] / ns.hacknet.hashCost(a[2])
+                    });
 
-                if (hacknet_upgrades[0][1] <= 0
-                    || ns.hacknet.numHashes() < ns.hacknet.hashCost(hacknet_upgrades[0][2])
-                    || !ns.hacknet.spendHashes(hacknet_upgrades[0][2], hacknet_upgrades[0][3])
-                ) { break; }
+                    if (hacknet_upgrades[0][1] <= 0
+                        || ns.hacknet.numHashes() < ns.hacknet.hashCost(hacknet_upgrades[0][2])
+                        || !ns.hacknet.spendHashes(hacknet_upgrades[0][2], hacknet_upgrades[0][3])
+                    ) { break; }
 
-                if (hacknet_upgrades[0][2] === "Sell for Money") {
-                    sfh.money.spent.hacknet = Math.max(sfh.money.spent.hacknet - 1e6, 0);
+                    if (hacknet_upgrades[0][2] === "Sell for Money") {
+                        sfh.money.spent.hacknet = Math.max(sfh.money.spent.hacknet - 1e6, 0);
+                    }
                 }
             }
         }
@@ -351,7 +330,7 @@ export async function main(ns: NS) {
                     }
                 }
             }
-            
+
             if (hpd <= 0) { break; }
             if (!sfh.purchase("hacknet", money, cost, buy)) { break; }
         }
@@ -362,9 +341,36 @@ export async function main(ns: NS) {
         const stats = ns.hacknet.getNodeStats(i);
         sfh.hnet.prod += hashRate(stats.level, stats.ram, stats.cores);
     }
-    sfh.hnet.hashes   = ns.hacknet.numHashes();
-    sfh.hnet.capacity = ns.hacknet.hashCapacity();
-    sfh.hnet.dps      = sfh.hnet.prod * 1e6 / 4;
+    sfh.hnet.hashes     = ns.hacknet.numHashes();
+    sfh.hnet.capacity   = ns.hacknet.hashCapacity();
+    sfh.hnet.study_mult = ns.hacknet.getStudyMult();
+    sfh.hnet.train_mult = ns.hacknet.getTrainingMult();
+    sfh.gainUpdate("hacknet", { money: sfh.hnet.prod * 1e6 / 4 });
 
-    sfh.player.money = money();
+    let can_sleeve_aug = true;
+    for (let i = 0; can_sleeve_aug && i < sfh.sleeves.length; ++i) {
+        can_sleeve_aug = sfh.sleeves[i].shock === 0;
+    }
+
+    if (can_sleeve_aug) {
+        type AugData = ReturnType<NS["sleeve"]["getSleevePurchasableAugs"]>[0];
+        const aug_sets: Set<string>[] = [];
+        for (let i = 0; i < 7; ++i) {
+            aug_sets.push(new Set(ns.sleeve.getSleevePurchasableAugs(i).map(a => a.name)));
+        }
+
+        const augs = ns.sleeve.getSleevePurchasableAugs(7).filter(({ name }) => (
+            aug_sets[0].has(name) && aug_sets[1].has(name) && aug_sets[2].has(name)
+            && aug_sets[3].has(name) && aug_sets[4].has(name)
+            && aug_sets[5].has(name) && aug_sets[6].has(name)
+        )).sort((p, q) => p.cost - q.cost);
+
+        for (const aug of augs) {
+            if (!sfh.purchase("sleeves", money, 8 * aug.cost, () => {
+                for (let i = 0; i < 8; ++i) { ns.sleeve.purchaseSleeveAug(i, aug.name); }
+            })) { break; }
+        }
+    }
+
+    sfh.money.curr = money();
 }

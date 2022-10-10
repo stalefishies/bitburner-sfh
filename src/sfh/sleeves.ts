@@ -1,189 +1,271 @@
-type Stats = {
-    hac: number, str: number, def: number, dex: number, agi: number, cha: number, int: number;
-}
+export async function main(ns: NS) {
+    if (ns.args.length !== 1 || ns.args[0] !== "sfh") { return; }
 
-function makeCrime(name: string, time: number, money: number, difficulty: number, karma: number,
-    stats: Partial<Stats>, exp: Partial<Stats>)
-{
-    return { name, time, money, difficulty, karma,
-        stats: {
-            hac: stats.hac ?? 0,
-            str: stats.str ?? 0,
-            def: stats.def ?? 0,
-            dex: stats.dex ?? 0,
-            agi: stats.agi ?? 0,
-            cha: stats.cha ?? 0,
-            int: 0
-        }, exp: {
-            hac: exp.hac ?? 0,
-            str: exp.str ?? 0,
-            def: exp.def ?? 0,
-            dex: exp.dex ?? 0,
-            agi: exp.agi ?? 0,
-            cha: exp.cha ?? 0,
-            int: exp.int ?? 0
-        }
-    };
-}
-
-const crimes: {
-    name:       string;
-    time:       number;
-    money:      number;
-    difficulty: number;
-    karma:      number;
-    stats:      Stats;
-    exp:        Stats;
-}[] = [
-    makeCrime("Shoplift",           2e3,  15e3, 1/20,  0.10, { dex: 2, agi: 2 },
-        { dex: 2, agi: 2 }),
-    makeCrime("Rob Store",         60e3, 400e3,  1/5,  0.50, { hac: 0.5, dex: 2, agi: 1 },
-        { hac: 30, dex: 45, agi: 45, int: 0.375 }),
-    makeCrime("Mug",                4e3,  36e3,  1/5,  0.25, { str: 1.5, def: 0.5, dex: 1.5, agi: 0.5 },
-        { str: 3, def: 3, dex: 3, agi: 3 }),
-    makeCrime("Larceny",           90e3, 800e3,  1/3,  1.50, { hac: 0.5, dex: 1, agi: 1 },
-        { hac: 45, dex: 60, agi: 60, int: 0.75 }),
-    makeCrime("Deal Drugs",        10e3, 120e3,    1,  0.50, { cha: 3, dex: 2, agi: 1 },
-        { dex: 5, agi: 5, cha: 10 }),
-    makeCrime("Bond Forgery",     300e3, 4.5e6,  1/2,  0.10, { hac: 0.05, dex: 1.25 },
-        { hac: 100, dex: 150, cha: 15, int: 3 }),
-    makeCrime("Traffick Arms",     40e3,  40e3,    2,  1.00, { cha: 1, str: 1, def: 1, dex: 1, agi: 1 },
-        { cha: 1, str: 1, def: 1, dex: 1, agi: 1 }),
-    makeCrime("Homicide",           3e3,  45e3,    1,  3.00, { str: 2, def: 2, dex: 0.5, agi: 0.5 },
-        { str: 2, def: 2, dex: 2, agi: 2 }),
-    makeCrime("Grand Theft Auto",  80e3, 1.6e6,    8,  5.00, { hac: 1, str: 1, dex: 4, agi: 2, cha: 2 },
-        { str: 20, def: 20, dex: 20, agi: 80, cha: 40, int: 0.8 }),
-    makeCrime("Kidnap",           120e3, 3.6e6,    5,  6.00, { cha: 1, str: 1, dex: 1, agi: 1 },
-        { str: 80, def: 80, dex: 80, agi: 80, cha: 80, int: 1.3 }),
-    makeCrime("Assassination",    300e3,  12e6,    8, 10.00, { str: 1, dex: 2, agi: 1 },
-        { str: 300, def: 300, dex: 300, agi: 300, int: 3.25 }),
-    makeCrime("Heist",            600e3, 120e6,   18, 15.00, { hac: 1, str: 1, def: 1, dex: 1, agi: 1, cha: 1 },
-        { hac: 450, str: 450, def: 450, dex: 450, agi: 450, cha: 450, int: 6.5 }),
-];
-
-async function sfhMain(ns: NS) {
-    for (const key in sfh.sleeves) { sfh.sleeves[key as keyof typeof sfh.sleeves] = 0; }
     const num = 8; // ns.sleeve.getNumSleeves();
-
     for (let i = 0; i < num; ++i) {
-        const sleeve = sfh.x.player.sleeves[i];
-        if (sleeve == null) { continue; }
+        sfh.sleeveUpdate(i, ns.sleeve.getInformation(i), ns.sleeve.getSleeveStats(i));
+    }
 
-        const stats: (ReturnType<NS["sleeve"]["getSleeveStats"]> & { intelligence: number })
-            = ns.sleeve.getSleeveStats(i) as any;
-        stats.intelligence ??= 0;
+    const sleeves = Array.from(sfh.sleeves).sort((s, t) => (
+          (1 - t.shock * t.shock) * (t.hac + t.str + t.def + t.dex + t.agi)
+        - (1 - s.shock * s.shock) * (s.hac + s.str + s.def + s.dex + s.agi)
+    ));
 
-        const task = ns.sleeve.getTask(i) as CurrentWork | null;
-        const info = ns.sleeve.getInformation(i);
+    const factions  = new Set<string>();
+    const companies = new Set<string>();
+    const bb = {
+        "Tracking":      false,
+        "Bounty Hunter": false,
+        "Retirement":    false
+    };
 
-        let work: [string, string] | null = null;
+    const sleeve_work: [string, string][] = [];
+    for (const sleeve of sleeves) {
+        let work: typeof sleeve_work[0] | null = null;
 
         // Stats
-        if (!work && stats.shock <= 50 && sfh.money.can_train) {
-            if      (sfh.player.hac < Math.max(sfh.goal.hac, 150)) { work = ["university", "skill"]; }
-            else if (sfh.player.str < Math.max(sfh.goal.str, 100)) { work = ["gym",        "str"];   }
-            else if (sfh.player.def < Math.max(sfh.goal.def, 100)) { work = ["gym",        "def"];   }
-            else if (sfh.player.dex < Math.max(sfh.goal.dex, 100)) { work = ["gym",        "dex"];   }
-            else if (sfh.player.agi < Math.max(sfh.goal.agi, 100)) { work = ["gym",        "agi"];   }
-            else if (sfh.player.cha < Math.max(sfh.goal.cha, 100)) { work = ["university", "cha"];   }
-            else if (stats.hacking   < sfh.bitnode.mult.hac * 150) { work = ["university", "skill"]; }
-            else if (stats.strength  < sfh.bitnode.mult.str * 150) { work = ["gym",        "str"];   }
-            else if (stats.defense   < sfh.bitnode.mult.def * 150) { work = ["gym",        "def"];   }
-            else if (stats.dexterity < sfh.bitnode.mult.dex * 150) { work = ["gym",        "dex"];   }
-            else if (stats.agility   < sfh.bitnode.mult.agi * 150) { work = ["gym",        "agi"];   }
-            else if (stats.charisma  < sfh.bitnode.mult.cha * 100) { work = ["university", "cha"];   }
+        if (!work && sleeve.shock <= 0.5 && sfh.money.can_class) {
+            if      (sfh.player.hac < Math.max(sfh.goal.hac, 150)) { work = ["uni", "hac"]; }
+            else if (sfh.player.str < Math.max(sfh.goal.str, 100)) { work = ["gym", "str"]; }
+            else if (sfh.player.def < Math.max(sfh.goal.def, 100)) { work = ["gym", "def"]; }
+            else if (sfh.player.dex < Math.max(sfh.goal.dex, 100)) { work = ["gym", "dex"]; }
+            else if (sfh.player.agi < Math.max(sfh.goal.agi, 100)) { work = ["gym", "agi"]; }
+            else if (sfh.player.cha < Math.max(sfh.goal.cha, 100)) { work = ["uni", "cha"]; }
+            else if (sleeve.hac < sleeve.mults.hac * 150) { work = ["uni", "hac"]; }
+            else if (sleeve.str < sleeve.mults.str * 100) { work = ["gym", "str"]; }
+            else if (sleeve.def < sleeve.mults.def * 100) { work = ["gym", "def"]; }
+            else if (sleeve.dex < sleeve.mults.dex * 100) { work = ["gym", "dex"]; }
+            else if (sleeve.agi < sleeve.mults.agi * 100) { work = ["gym", "agi"]; }
+            else if (sleeve.cha < sleeve.mults.cha * 100) { work = ["uni", "cha"]; }
+        }
+
+        // Player work
+        if (!work && sleeve.shock <= 0.9 && sfh.state.work) {
+            if (sfh.state.work.type === "faction" && !factions.has(sfh.state.work.loc)) {
+                work = ["faction", sfh.state.work.loc];
+            } else if (sfh.state.work.type === "company" && !companies.has(sfh.state.work.loc)) {
+                work = ["company", sfh.state.work.loc];
+            }
+        }
+
+        // Goal work
+        if (!work && sleeve.shock <= 0.8) {
+            for (const { org } of sfh.goal.work) {
+                if (org.faction && !factions.has(org.name)) {
+                    work = ["faction", org.name];
+                } else if (!org.faction && !companies.has(org.name)) {
+                    work = ["company", org.name];
+                }
+            }
         }
 
         // Crime
-        if (!work && stats.shock <= 80) {
-            let crime = null;
-            let prob  = 0;
-            let kps   = 0;
-            let dps   = 0;
+        if (!work && sleeve.shock <= 0.8) {
+            if      (sfh.player.karma > -54000) { work = ["crime", "karma"]; }
+            else if (sfh.money.curr   <    1e9) { work = ["crime", "money"]; }
+        }
 
-            for (const this_crime of crimes) {
-                let this_prob = (
-                      this_crime.stats.hac * stats.hacking
-                    + this_crime.stats.str * stats.strength
-                    + this_crime.stats.def * stats.defense
-                    + this_crime.stats.dex * stats.dexterity
-                    + this_crime.stats.agi * stats.agility
-                    + this_crime.stats.cha * stats.charisma
-                    + 0.025 * stats.intelligence
-                ) / 975 / this_crime.difficulty * info.mult.crimeSuccess
-                * (1 + Math.pow(stats.intelligence, 0.8) / 600);
-                this_prob = Math.max(Math.min(this_prob, 1), 0);
-                
-                const this_kps = this_prob * this_crime.karma / this_crime.time * 1000;
-                const this_dps = this_prob * this_crime.money / this_crime.time * 1000;
+        // Bladeburner contracts
+        //if (!work && sleeve.shock <= 50) {
+        //    for (const contract of ["Tracking", "Bounty Hunter", "Retirement"] as (keyof typeof bb)[]) {
+        //        if (!bb[contract]) {
+        //            work = ["bladeburner", contract];
+        //            bb[contract] = true;
+        //            break;
+        //        }
+        //    }
+        //}
 
-                if (sfh.player.karma > -54000) {
-                    if (this_kps > kps) { crime = this_crime; prob = this_prob; dps = this_dps; kps = this_kps; }
-                } else {
-                    if (this_dps > dps) { crime = this_crime; prob = this_prob; dps = this_dps; kps = this_kps; }
+        // Companies without faction unlocked and highest favour
+        if (!work && sleeve.shock <= 0.5) {
+            for (const company of Object.values(sfh.state.companies)) {
+                if (company.name == "Fulcrum Technologies" && !sfh.network.fulcrumassets.backdoor) { continue; }
+                if (company.title == null || company.dual == null || companies.has(company.name)) { continue; }
+
+                if (!company.finished && company.rep < (data.factions[company.dual].reqs.company ?? 0)
+                    && (work == null || company.favour > (sfh.state.companies[work[1]]?.favour ?? 0)))
+                {
+                    work = ["company", company.name];
                 }
-            }
-
-            if (crime) {
-                work = ["crime", crime.name];
-
-                sfh.sleeves.money_rate += dps * info.mult.crimeMoney * sfh.player.mult.crime_money;
-                sfh.sleeves.karma_rate += kps;
-
-                const rate = prob * sfh.player.mult.crime_exp / crime.time * 1000;
-                sfh.sleeves.skill_rate += rate * crime.exp.hac * sfh.player.mult.hac_exp;
-                sfh.sleeves.str_rate   += rate * crime.exp.str * sfh.player.mult.str_exp;
-                sfh.sleeves.def_rate   += rate * crime.exp.def * sfh.player.mult.def_exp;
-                sfh.sleeves.dex_rate   += rate * crime.exp.dex * sfh.player.mult.dex_exp;
-                sfh.sleeves.agi_rate   += rate * crime.exp.agi * sfh.player.mult.agi_exp;
-                sfh.sleeves.cha_rate   += rate * crime.exp.cha * sfh.player.mult.cha_exp;
-
-                sfh.sleeves.int_rate   += prob * crime.exp.int / crime.time;
             }
         }
 
-        if (work?.[0] === "university") {
-            if (info.city !== "Volhaven" && sfh.can.purchase) {
-                sfh.purchase("goal", null, 200e3, () => ns.sleeve.travel(i, "Volhaven"));
-                if (ns.sleeve.getInformation(i).city !== "Volhaven") { continue; }
-            }
+        // Factions with augs left to purchase and highest favour
+        if (!work && sleeve.shock <= 0.5) {
+            for (const faction of Object.values(sfh.state.factions)) {
+                if (factions.has(faction.name) || (sfh.state.has_gang && faction.name === "Slum Snakes")) { continue; }
 
-            if (task?.type !== "CLASS"
-                || (work[1] === "hac" && task.classType !== "ALGORITHMS")
-                || (work[1] === "cha" && task.classType !== "LEADERSHIP")
-            ) {
-                const name = (work[1] === "cha" ? "Leadership" : "Algorithms");
-                ns.sleeve.setToUniversityCourse(i, "ZB Institute of Technology", name);
+                if (faction.joined && !faction.finished
+                    && (work == null || faction.favour > (sfh.state.factions[work[1]]?.favour ?? 0)))
+                {
+                    work = ["faction", faction.name];
+                }
             }
-        } else if (work?.[0] === "gym") {
-            if (info.city !== "Sector-12" && sfh.can.purchase) {
-                sfh.purchase("goal", null, 200e3, () => ns.sleeve.travel(i, "Sector-12"));
-                if (ns.sleeve.getInformation(i).city !== "Sector-12") { continue; }
-            }
+        }
 
-            if (task?.type !== "CLASS"
-                || (work[1] === "str" && task.classType !== "GYMSTRENGTH")
-                || (work[1] === "def" && task.classType !== "GYMDEFENSE")
-                || (work[1] === "dex" && task.classType !== "GYMDEXTERITY")
-                || (work[1] === "agi" && task.classType !== "GYMAGILITY")
-            ) {
-                     if (work[1] === "def") { ns.sleeve.setToGymWorkout(i, "Powerhouse Gym", "Defense");   }
-                else if (work[1] === "dex") { ns.sleeve.setToGymWorkout(i, "Powerhouse Gym", "Dexterity"); }
-                else if (work[1] === "agi") { ns.sleeve.setToGymWorkout(i, "Powerhouse Gym", "Agility");   }
-                else                        { ns.sleeve.setToGymWorkout(i, "Powerhouse Gym", "Strength");  }
+        if (!work && sleeve.shock <= 0.2) { work = ["crime", "money"]; }
+        sleeve_work[sleeve.index] = work ?? ["shock", ""];
+
+        if (work?.[0] === "faction") { factions.add(work[1]); }
+        if (work?.[0] === "company") { companies.add(work[1]); }
+    }
+
+    //sfh.print("{j}", sleeve_work);
+
+    // Stop faction/company work that's ending
+    for (const sleeve of sleeves) {
+        const work = sleeve_work[sleeve.index];
+        const task = ns.sleeve.getTask(sleeve.index);
+
+        if (task?.type === "FACTION") {
+            if (work[0] !== "faction" || work[1] !== task.factionName) {
+                ns.sleeve.setToShockRecovery(sleeve.index);
             }
-        } else if (work?.[0] === "crime") {
-            if (task?.type !== "CRIME" || sleeve.work?.crimeType !== work[1]) {
-                ns.sleeve.setToCommitCrime(i, work[1]);
+        } else if (task?.type === "COMPANY") {
+            if (work[0] !== "company" || work[1] !== task.companyName) {
+                ns.sleeve.setToShockRecovery(sleeve.index);
             }
-        } else {
-            if (task?.type !== "RECOVERY") {
-                ns.sleeve.setToShockRecovery(i);
+        } else if (task?.actionType === "Contracts") {
+            if (work[0] !== "bladeburner" || work[1] !== task.actionName) {
+                ns.sleeve.setToShockRecovery(sleeve.index);
             }
         }
     }
-}
 
-export async function main(ns: NS) {
-    if (ns.args.length == 1 && ns.args[0] == "sfh") { await sfhMain(ns); return; }
+    // Apply work
+    for (const sleeve of sleeves) {
+        const index = sleeve.index;
+        const task  = ns.sleeve.getTask(index);
+        let   work  = sleeve_work[index];
+
+        //sfh.print("Set sleeve {} to {}", index, work);
+        //sfh.print("{j}", task);
+
+        if (work[0] === "uni") {
+            if (sleeve.city !== "Volhaven" && sfh.can.purchase) {
+                sfh.purchase("goal", null, 200e3, () => ns.sleeve.travel(index, "Volhaven"));
+                sleeve.city = ns.sleeve.getInformation(index).city;
+            }
+
+            if (sleeve.city === "Volhaven") {
+                if (task?.type !== "CLASS"
+                    || (work[1] === "hac" && task.classType !== "ALGORITHMS")
+                    || (work[1] === "cha" && task.classType !== "LEADERSHIP")
+                ) {
+                    const name = (work[1] === "cha" ? "Leadership" : "Algorithms");
+                    ns.sleeve.setToUniversityCourse(index, "ZB Institute of Technology", name);
+                }
+            } else {
+                work = sleeve_work[index] = (sleeve.shock <= 20 ? ["crime", "money"] : ["shock", ""]);
+            }
+        }
+        
+        if (work[0] === "gym") {
+            if (sleeve.city !== "Sector-12" && sfh.can.purchase) {
+                sfh.purchase("goal", null, 200e3, () => ns.sleeve.travel(index, "Sector-12"));
+                sleeve.city = ns.sleeve.getInformation(index).city;
+            }
+
+            if (sleeve.city === "Sector-12") {
+                if (task?.type !== "CLASS"
+                    || (work[1] === "str" && task.classType !== "GYMSTRENGTH")
+                    || (work[1] === "def" && task.classType !== "GYMDEFENSE")
+                    || (work[1] === "dex" && task.classType !== "GYMDEXTERITY")
+                    || (work[1] === "agi" && task.classType !== "GYMAGILITY")
+                ) {
+                         if (work[1] === "def") { ns.sleeve.setToGymWorkout(index, "Powerhouse Gym", "def"); }
+                    else if (work[1] === "dex") { ns.sleeve.setToGymWorkout(index, "Powerhouse Gym", "dex"); }
+                    else if (work[1] === "agi") { ns.sleeve.setToGymWorkout(index, "Powerhouse Gym", "agi"); }
+                    else                        { ns.sleeve.setToGymWorkout(index, "Powerhouse Gym", "str"); }
+                }
+            } else {
+                work = sleeve_work[index] = (sleeve.shock <= 20 ? ["crime", "money"] : ["shock", ""]);
+            }
+        }
+
+        if (work[0] === "faction") {
+            const loc  = work[1];
+            const desc = data.bestFactionWork(loc, sleeve, "rep");
+
+            if (sfh.state.factions[loc]?.joined) {
+                if (task?.type !== "FACTION" || task.factionName !== loc || task.factionWorkType !== desc) {
+                    ns.sleeve.setToFactionWork(index, loc, desc);
+                }
+            } else {
+                work = sleeve_work[index] = (sleeve.shock <= 20 ? ["crime", "null"] : ["shock", ""]);
+            }
+        }
+
+        if (work[0] === "company") {
+            const loc = work[1];
+
+            if (sfh.state.companies[loc]?.title) {
+                if (task?.type !== "COMPANY" || task.companyName !== loc) {
+                    ns.sleeve.setToCompanyWork(index, loc);
+                }
+            } else {
+                work = sleeve_work[index] = (sleeve.shock <= 20 ? ["crime", "null"] : ["shock", ""]);
+            }
+        }
+
+        if (work[0] === "bladeburner") {
+            let type = work[1];
+            if (work[1] === "Tracking" || work[1] === "Bounty Hunter" || work[1] === "Retirement") {
+                if (!task || task.actionType !== "Contracts" || task.actionName !== work[1]) {
+                    ns.sleeve.setToBladeburnerAction(index, "Take on contracts", work[1]);
+                }
+            } else {
+                if (!task || task.actionType !== "General" || task.actionName !== work[1]) {
+                    ns.sleeve.setToBladeburnerAction(index, work[1]);
+                }
+            }
+        }
+
+        if (work[0] === "shock") {
+            if (sleeve.shock === 0) {
+                work[0] = "crime";
+                work[1] = "money";
+            } else if (task?.type !== "RECOVERY") {
+                ns.sleeve.setToShockRecovery(index);
+            }
+        }
+
+        if (work[0] === "crime" || ns.sleeve.getTask(index) == null) {
+            if (work[1] !== "karma" && work[1] !== "money") {
+                work[1] = sfh.player.karma > -54000 ? "karma" : "money";
+            }
+
+            const desc = data.bestCrimeWork(sleeve, (work[1] as "karma" | "money"));
+            if (task?.type !== "CRIME" || task.crimeType !== desc) {
+                ns.sleeve.setToCommitCrime(index, desc);
+            }
+        }
+    }
+
+    const gain = { money: 0, karma: 0, rep: 0,
+        hac_exp: 0, str_exp: 0, def_exp: 0, dex_exp: 0, agi_exp: 0, cha_exp: 0, int_exp: 0 };
+    for (let i = 0; i < 8; ++i) {
+        const task = ns.sleeve.getTask(i);
+        const this_gain = data.calcWork(task, sfh.sleeves[i]);
+
+        //sfh.print("Sleeve {}: {}", i, task.type);
+        //sfh.print("{j}", this_gain);
+
+        gain.money   += this_gain.money;
+        gain.karma   += this_gain.karma;
+        gain.hac_exp += this_gain.hac_exp;
+        gain.str_exp += this_gain.str_exp;
+        gain.def_exp += this_gain.def_exp;
+        gain.dex_exp += this_gain.dex_exp;
+        gain.agi_exp += this_gain.agi_exp;
+        gain.cha_exp += this_gain.cha_exp;
+        gain.int_exp += this_gain.int_exp;
+
+        if ((task.type === "FACTION" && sfh.state.work?.type === "faction"
+                && task.factionName === sfh.state.work.loc)
+            || (task.type === "COMPANY" && sfh.state.work?.type === "company"
+                && task.companyName === sfh.state.work.loc))
+        { gain.rep += this_gain.rep; }
+    }
+    sfh.gainUpdate("sleeves", gain);
 }

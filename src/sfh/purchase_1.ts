@@ -19,7 +19,7 @@ export async function main(ns: NS) {
                     let donation = 0;
                     if (aug_rep > faction.rep) {
                         if (!ns.singularity.donateToFaction(faction.name, Number.MIN_VALUE)) { break; }
-                        donation = (aug_rep - faction.rep) / sfh.player.mult.faction_rep * 1e6;
+                        donation = (aug_rep - faction.rep) / sfh.player.mults.faction_rep * 1e6;
                     }
 
                     if (money() < aug_cost + donation
@@ -41,7 +41,8 @@ export async function main(ns: NS) {
         if (sfh.goal.type === "program" && sfh.goal.desc === "TOR") {
             sfh.purchase("goal", money, 200e3, () => ns.singularity.purchaseTor());
         } else if (sfh.goal.type === "program") {
-            sfh.purchase("goal", money, sfh.goal.money, () => ns.singularity.purchaseProgram(sfh.goal.desc));
+            //sfh.print("{} {m} {m} {m}", sfh.goal.desc, money(), sfh.goal.money, sfh.goal.money_next);
+            sfh.purchase("goal", money, sfh.goal.money_next, () => ns.singularity.purchaseProgram(sfh.goal.desc));
         } else if (sfh.goal.type === "faction" && sfh.goal.desc === "Tian Di Hui" && !sfh.state.goto) {
             if (sfh.state.city === "Chongqing" || sfh.state.city === "New Tokyo" || sfh.state.city === "Ishima") {
                 sfh.state.goto = { city: sfh.state.city, type: "faction", desc: "Tian Di Hui" };
@@ -61,8 +62,8 @@ export async function main(ns: NS) {
             const queue_pow = (1.9 * [1, 0.96, 0.94, 0.93][sfh.bitnode.sf[11]]);
             const mult = sfh.state.augs.queued.size ** queue_pow;
             const aug  = sfh.goal.augs[0];
-            const cost = data.augs[aug.name].cost * sfh.player.mult.aug_cost * mult;
-            const rep  = data.augs[aug.name].rep  * sfh.player.mult.aug_rep;
+            const cost = data.augs[aug.name].cost * sfh.player.mults.aug_cost * mult;
+            const rep  = data.augs[aug.name].rep  * sfh.player.mults.aug_rep;
 
             let faction  = null;
             let donation = Number.POSITIVE_INFINITY;
@@ -73,7 +74,7 @@ export async function main(ns: NS) {
                 let d = 0;
                 if (f.rep < rep) {
                     if (!ns.singularity.donateToFaction(f.name, Number.MIN_VALUE)) { continue; }
-                    d = (rep - f.rep) / sfh.player.mult.faction_rep * 1e6;
+                    d = (rep - f.rep) / sfh.player.mults.faction_rep * 1e6;
                 }
                 if (d < donation && sfh.purchase("goal", money, d + cost, null)) {
                     faction  = f;
@@ -93,7 +94,7 @@ export async function main(ns: NS) {
             const work = sfh.goal.work[0];
 
             if (work.org.favour > sfh.bitnode.donation) {
-                const donation = (work.rep - work.org.rep) / sfh.player.mult.faction_rep * 1e6;
+                const donation = (work.rep - work.org.rep) / sfh.player.mults.faction_rep * 1e6;
                 if (donation > 0) {
                     sfh.purchase("goal", money, donation,
                         () => ns.singularity.donateToFaction(work.org.name, donation));

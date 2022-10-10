@@ -1,7 +1,6 @@
 import * as S from "sfh";
 
 import { format } from "/sfh/format.js";
-import { runCorp } from "/bin/corp.js";
 
 import { uiCreate } from "/ui/create.js";
 import { uiUpdate } from "/ui/update.js";
@@ -25,7 +24,9 @@ class SFH {
     player:  S.Player;
     state:   S.State;
     money:   S.Money;
+    gains:   S.Gains;
     goal:    S.Goal;
+    netstat: S.NetworkStatus;
     network: S.Network;
     procs:   S.Processes;
     hacking: S.Hacking;
@@ -34,6 +35,7 @@ class SFH {
     hnet:    S.Hacknet;
     gang:    S.Gang;
     corp:    S.Corp;
+    stanek:  S.Stanek;
 
     constructor(sfh: { [K in keyof SFH as (SFH[K] extends Function | boolean ? never : K)]: SFH[K] }) {
         this.install = false;
@@ -50,7 +52,9 @@ class SFH {
         this.player  = sfh.player;
         this.state   = sfh.state;
         this.money   = sfh.money;
+        this.gains   = sfh.gains;
         this.goal    = sfh.goal;
+        this.netstat = sfh.netstat;
         this.network = sfh.network;
         this.procs   = sfh.procs;
         this.hacking = sfh.hacking;
@@ -59,32 +63,57 @@ class SFH {
         this.hnet    = sfh.hnet;
         this.gang    = sfh.gang;
         this.corp    = sfh.corp;
+        this.stanek  = sfh.stanek;
     }
 
     getBitburnerInternals() {
-        sfh.x ??= {} as typeof sfh.x;
-        const names: (keyof S.Internals)[] = ["router", "player", "terminal"];
-        const divs = eval("document").querySelectorAll("div");
+        const win = eval("document").defaultView;
+        if (!win.appNotifier) {
+            throw new Error("Could not get bitnurner internals (only the electron version is supported)");
+        }
 
-        for (const name of names) {
-            find_prop: for (const div of divs) {
-                const props = div[Object.keys(div)[1]];
-                if (props?.children?.props?.[name]) {
-                    this.x[name] = props.children.props[name];
-                    break find_prop;
-                } else if (Array.isArray(props?.children)) {
-                    for (let child of props.children) {
-                        if (child?.props?.[name]) {
-                            this.x[name] = child.props[name];
-                            break find_prop;
-                        }
-                    }
+        const { terminal, toast } = win.appNotifier;
+        this.x.print = terminal;
+        this.x.toast = toast;
+
+        const { triggerSave, triggerGameExport, getSaveData, getSaveInfo, pushSaveData } = win.appSaveFns;
+        this.x.save        = triggerSave;
+        this.x.export      = triggerGameExport;
+        this.x.saveRead    = () => getSaveInfo(this.x.saveReadB64());
+        this.x.saveReadB64 = () => getSaveData().save;
+        this.x.saveWrite   = function(data: any, reload?: boolean) {
+            if (typeof data === "string") {
+                data = getSaveInfo(data);
+            } else if (typeof data !== "object") {
+                throw new Error(`Invalid type ${typeof data} passed to sfh.x.saveWrite`);
+            }
+
+            return pushSaveData(data, reload);
+        }
+
+        let installedModules: any;
+        const payload_id = "payload" + String(Math.trunc(performance.now()));
+        (globalThis as any).webpackJsonp.push([payload_id, {
+            [payload_id]: function(_e: any, _t: any, require: any) {
+                installedModules = require.c;
+            }
+        }, [[payload_id]]]);
+        if (!installedModules) { throw new Error("Could not get webpack module cache"); }
+
+        for (const module of Object.values(installedModules) as any[]) {
+            for (const obj of Object.values(module?.exports ?? {}) as any[]) {
+                if (!sfh.x.player && typeof obj.whoAmI === "function" && obj.whoAmI() === "Player") {
+                    sfh.x.player = obj;
+                } else if (!sfh.x.router && typeof obj.toDevMenu === "function") {
+                    sfh.x.router = obj;
                 }
             }
+
+            if (sfh.x.player && sfh.x.router) { break; }
         }
-        
-        const save_game = eval("document").querySelector('button[aria-label="save game"]');
-        this.x.save = (() => save_game.click());
+
+        if (!this.x.player) { throw new Error("Could not get player object from webpack module cache"); }
+        if (!this.x.router) { throw new Error("Could not get router object from webpack module cache"); }
     }
 
     format(fmt: string, ...args: any[]) { return format(fmt, ...args); }
@@ -100,15 +129,15 @@ class SFH {
     }
 
     print(...args: any[]) {
-        if (this.x.terminal == null) { 
+        if (this.x.print == null) { 
             this.getBitburnerInternals();
-            if (this.x.terminal == null) { return; }
+            if (this.x.print == null) { return; }
         }
 
         if (args.length === 0) {
-            this.x.terminal.print("\n");
+            this.x.print("\n");
         } else {
-            this.x.terminal.print(this.sprint(...args));
+            this.x.print(this.sprint(...args));
         }
     }
 
@@ -118,33 +147,36 @@ class SFH {
         this.ui.colours  = ns.ui.getTheme();
         this.ui.styles   = ns.ui.getStyles();
         this.ui.root     = doc.getElementById("root") as HTMLDivElement;
-        this.ui.parent   = this.ui.root.children[0]   as HTMLDivElement;
-        this.ui.overview = this.ui.parent.children[0] as HTMLDivElement;
+        this.ui.overview = this.ui.root.children[0] as HTMLDivElement;
 
         uiCreate();
     }
 
     uiInject(ns: NS) {
         if (!this.ui.root) { this.uiCreate(ns); }
+        const doc: Document = eval("document");
 
         this.ui.overview.style.display = "none";
-        this.ui.parent.style.marginRight = "211px";
-        this.ui.root.appendChild(this.ui.sfh);
+        this.ui.root.style.marginRight = "211px";
+        doc.body.appendChild(this.ui.sfh);
 
         this.uiUpdate();
     }
 
     uiRemove() {
+        const doc: Document = eval("document");
+
         if (this.ui.root) {
             this.ui.overview.style.display = "";
-            this.ui.parent.style.marginRight = "";
-            this.ui.root.removeChild(this.ui.sfh);
+            this.ui.root.style.marginRight = "";
         }
+
+        doc.body.removeChild(this.ui.sfh);
     }
 
     uiUpdate() { uiUpdate(); }
 
-    purchase(type: S.MoneyType, money: (() => number) | null, cost: number | (() => number),
+    purchase(type: S.SpendType, money: (() => number) | null, cost: number | (() => number),
         callback: (() => unknown) | null, frac?: number): boolean
     {
         if (!this.can.purchase && (this.bitnode.number !== 8 || type !== "stocks")) { return false; }
@@ -171,7 +203,18 @@ class SFH {
         return true;
     }
 
+    gainUpdate(type: Exclude<S.GainType, "total">, gain: Partial<S.Gain> | null) {
+        gain ??= {};
+        for (const key of (Object.keys(sfh.gains.total) as (keyof S.Gain)[])) {
+            gain[key] ??= 0;
+            this.gains.total[key] += gain[key]! - this.gains[type][key];
+            this.gains[type][key] = gain[key]!;
+        }
+    }
+
     playerUpdate(ns: NS, player: ReturnType<NS["getPlayer"]>) {
+        this.player.player = player;
+
         const avg = function(list: number[], value: number, T = 60, k = 0.97716) {
             list.unshift(value);
             while (list.length > T) {
@@ -200,7 +243,6 @@ class SFH {
 
         this.player.hp     = player.hp.max;
         this.player.cur_hp = player.hp.current;
-        this.player.money  = player.money;
         this.player.karma  = (ns as any).heart.break();
 
         const map: [keyof S.Mults, keyof typeof player.mults | null][] = [
@@ -275,9 +317,10 @@ class SFH {
             ["bb_cost",         null],
         ];
 
-        this.player.mult ??= {} as S.Mults;
+        this.player.mults ??= {} as S.Mults;
         for (const it of map) {
-            this.player.mult[it[0]] = (it[1] ? player.mults[it[1]] : 1) * this.bitnode.mult[it[0]];
+            this.player.mults[it[0]] = this.bitnode.mults[it[0]];
+            if (it[1]) { this.player.mults[it[0]] *= (player.mults[it[1]] ?? 1); }
         }
 
         this.time.reset   = player.playtimeSinceLastAug;
@@ -285,65 +328,161 @@ class SFH {
         this.time.total   = player.totalPlaytime;
     }
 
-    workUpdate(nsGetCurrentWork: NS["singularity"]["getCurrentWork"], nsIsFocused: NS["singularity"]["isFocused"]) {
+    sleeveUpdate(index: number, info: ReturnType<NS["sleeve"]["getInformation"]>,
+        skills: ReturnType<NS["sleeve"]["getSleeveStats"]>)
+    {
+        const sleeve  = (this.sleeves[index] ??= {} as Sleeve);
+        sleeve.index  = index;
+        sleeve.sleeve = true;
+
+        sleeve.hac = skills.hacking;
+        sleeve.str = skills.strength;
+        sleeve.def = skills.defense;
+        sleeve.dex = skills.dexterity;
+        sleeve.agi = skills.agility;
+        sleeve.cha = skills.charisma;
+        sleeve.int = this.x?.player?.sleeves?.[index]?.skills?.intelligence ?? 0;
+
+        sleeve.shock  = skills.shock / 100;
+        sleeve.sync   = skills.sync  / 100;
+        sleeve.hp     = info.hp.max;
+        sleeve.cur_hp = info.hp.current;
+
+        const map: [keyof S.Mults, keyof typeof info.mult | null][] = [
+            ["hac",             "hacking"],
+            ["str",             "strength"],
+            ["def",             "defense"],
+            ["dex",             "dexterity"],
+            ["agi",             "agility"],
+            ["cha",             "charisma"],
+            ["int",             null],
+
+            ["hac_exp",         "hackingExp"],
+            ["str_exp",         "strengthExp"],
+            ["def_exp",         "defenseExp"],
+            ["dex_exp",         "dexterityExp"],
+            ["agi_exp",         "agilityExp"],
+            ["cha_exp",         "charismaExp"],
+            ["int_exp",         null],
+
+            ["hack_money",      null],
+            ["hack_profit",     null],
+            ["hack_manual",     null],
+            ["hack_prob",       null],
+            ["hack_time",       null],
+            ["grow_rate",       null],
+            ["weak_rate",       null],
+
+            ["max_money",       null],
+            ["init_money",      null],
+            ["init_level",      null],
+
+            ["aug_cost",        null],
+            ["aug_rep",         null],
+
+            ["home_cost",       null],
+            ["cluster_cost",    null],
+            ["cluster_count",   null],
+            ["cluster_max_ram", null],
+            ["cluster_softcap", null],
+
+            ["faction_rep",     "factionRep"],
+            ["faction_exp",     null],
+            ["faction_passive", null],
+            ["company_money",   "workMoney"],
+            ["company_rep",     "companyRep"],
+            ["company_exp",     null],
+            ["crime_money",     "crimeMoney"],
+            ["crime_exp",       null],
+            ["crime_prob",      "crimeSuccess"],
+            ["class_exp",       null],
+
+            ["contract_money",  null],
+            ["infil_money",     null],
+            ["infil_rep",       null],
+
+            ["hacknet_prod",    null],
+            ["hacknet_node",    null],
+            ["hacknet_level",   null],
+            ["hacknet_ram",     null],
+            ["hacknet_core",    null],
+
+            ["corp_dividends",  null],
+            ["corp_valuation",  null],
+            ["gang_softcap",    null],
+            ["stanek_power",    null],
+
+            ["bb_sta",          null],
+            ["bb_sta_gain",     null],
+            ["bb_analysis",     null],
+            ["bb_prob",         null],
+            ["bb_rank",         null],
+            ["bb_cost",         null],
+        ];
+
+        sleeve.mults ??= {} as S.Mults;
+        for (const it of map) {
+            sleeve.mults[it[0]] = (it[1] ? info.mult[it[1]] : 1) * this.bitnode.mults[it[0]];
+        }
+    }
+
+    workUpdate(current_work: ReturnType<NS["singularity"]["getCurrentWork"]>, focus: boolean) {
         const prev_goal  = sfh.state.work?.goal  ?? false;
         const prev_focus = sfh.state.work?.focus ?? false;
 
-        const work = nsGetCurrentWork() as CurrentWork | null;
-        let rates = {} as any;
+        const work = current_work as CurrentWork | null;
 
         if (work == null) {
             this.state.work = null;
-        } else switch (work.type) {
+            return;
+        }
+
+        switch (work.type) {
             case "FACTION": {
                 this.state.work = {
-                    type:  "faction",
-                    desc:  work.factionWorkType,
-                    org:   this.state.factions[work.factionName],
+                    type: "faction",
+                    loc:  work.factionName,
+                    desc: work.factionWorkType
                 } as any;
-                rates = sfh.x.player.currentWork.getExpRates(sfh.x.player);
             } break;
 
             case "COMPANY": {
                 this.state.work = {
-                    type:  "company",
-                    desc:  sfh.x.player.jobs[work.companyName],
-                    org:   this.state.companies[work.companyName],
+                    type: "company",
+                    loc:  work.companyName,
+                    desc: sfh.state.companies[work.companyName].title
                 } as any;
-                rates = sfh.x.player.currentWork.getGainRates(sfh.x.player);
             } break;
 
             case "CREATE_PROGRAM": {
                 this.state.work = {
-                    type:  "program",
-                    desc:  work.programName,
-                    org:   null,
+                    type: "program",
+                    loc:  "",
+                    desc: work.programName
                 } as any;
            } break;
 
             case "CRIME": {
                 this.state.work = {
-                    type:  "crime",
-                    desc:  work.crimeType,
-                    org:   null,
+                    type: "crime",
+                    loc:  "",
+                    desc: work.crimeType
                 } as any;
-                // rates are complicated since they're per-crime not per-tick
             } break;
 
             case "CLASS": {
                 this.state.work = {
                     type: (work.classType.startsWith("GYM") ? "gym" : "university"),
-                    desc: work.classType,
-                    org: null
+                    loc:  work.location,
+                    desc: work.classType
                 } as any;
-                rates = sfh.x.player.currentWork.calculateRates(sfh.x.player);
             } break;
 
             case "GRAFTING": {
                 this.state.work = {
-                    type:  "graft",
-                    desc:  work.augmentation,
-                    org:   null,
+                    type: "graft",
+                    loc:  null,
+                    desc: work.augmentation
                 } as any;
             } break;
 
@@ -353,33 +492,13 @@ class SFH {
             } break;
         }
 
-        const has_focus = nsIsFocused();
         if (this.state.work) {
-            this.state.work.focus = has_focus;
-            const rate = 5e-3;
-
-            //this.state.work.money      = player.workMoneyGained;
-            //this.state.work.rep        = player.workRepGained;
-            //this.state.work.skill_exp  = player.workHackExpGained;
-            //this.state.work.str_exp    = player.workStrExpGained;
-            //this.state.work.def_exp    = player.workDefExpGained;
-            //this.state.work.dex_exp    = player.workDexExpGained;
-            //this.state.work.agi_exp    = player.workAgiExpGained;
-            //this.state.work.cha_exp    = player.workChaExpGained;
-            this.state.work.money_rate = (rates?.money      ?? 0) * rate;
-            this.state.work.rep_rate   = (rates?.reputation ?? 0) * rate;
-            this.state.work.skill_rate = (rates?.hackExp    ?? 0) * rate;
-            this.state.work.str_rate   = (rates?.strExp     ?? 0) * rate;
-            this.state.work.def_rate   = (rates?.defExp     ?? 0) * rate;
-            this.state.work.dex_rate   = (rates?.dexExp     ?? 0) * rate;
-            this.state.work.agi_rate   = (rates?.agiExp     ?? 0) * rate;
-            this.state.work.cha_rate   = (rates?.chaExp     ?? 0) * rate;
-            this.state.work.int_rate   = (rates?.intExp     ?? 0) * rate;
+            this.state.work.focus = focus;
 
             this.state.work.goal = false;
-            if (this.state.work.org) {
+            if (this.state.work.type === "faction" || this.state.work.type === "company") {
                 for (const goal of this.goal.work) {
-                    if (this.state.work.org?.name === goal.org.name && goal.org.rep < goal.rep) {
+                    if (this.state.work.loc === goal.org.name && goal.org.rep < goal.rep) {
                         this.state.work.goal = true;
                         break;
                     }
@@ -460,7 +579,7 @@ class SFH {
 
         for (const { org } of (sfh.goal.augs as { org: S.Org }[]).concat(sfh.goal.work)) {
             const reqs = data.factions[org.name].reqs;
-            sfh.goal.hac = Math.max(sfh.goal.hac, reqs.hacking ?? 0);
+            sfh.goal.hac = Math.max(sfh.goal.hac, reqs.hac ?? 0);
             sfh.goal.hac = Math.max(sfh.goal.hac, sfh.network[reqs.backdoor ?? ""]?.skill ?? 0);
             sfh.goal.hac = Math.max(sfh.goal.hac, reqs.special === "daedalus" ? 2500 : 0);
 
@@ -480,8 +599,10 @@ class SFH {
     netAdd(server: ReturnType<NS["getServer"]>, edges: string[], depth: number | null = null) {
         const name = server.hostname;
         if (name === "home") { server.maxRam = Math.max(server.maxRam - 64, 0); }
-        const node = (name in this.network ? this.network[name] : ({} as S.Node));
-        
+
+        const node  = (name in this.network ? this.network[name] : ({} as S.Server));
+        node.server = server;
+
         node.name     = name;
         node.owned    = server.purchasedByPlayer;
         node.hnet     = name.startsWith("hacknet-");
@@ -508,13 +629,15 @@ class SFH {
         node.cur_ports = server.openPortCount;
 
         node.tH = 5000 * (2.5 * node.skill * node.level + 500)
-            / ((this.player.hac + 50) * this.player.mult.hack_time * this.intMult(1));
+            / ((this.player.hac + 50) * this.player.mults.hack_time * this.intMult(1));
         node.tG = 3.2 * node.tH;
         node.tW = 4.0 * node.tH;
 
         node.backdoor = server.backdoorInstalled;
         node.root     = false;
         node.target   = false;
+        node.pool     = false;
+        node.cct      = [];
 
         node.edges = new Set(edges);
         if (typeof depth === "number") {
@@ -541,14 +664,14 @@ class SFH {
             if (typeof arg === "string") { files.push(arg); } else { files.push(...arg); }
         }
 
-        for (let node of this.nodes(n => n.owned || n.ram >= 2)) {
-            if (node.name === "home") { continue; }
-            await nsScp(files, node.name, "home");
+        for (let server of this.servers(s => s.owned || s.ram >= 2)) {
+            if (server.name === "home") { continue; }
+            await nsScp(files, server.name, "home");
         }
     }
 
     netSort() {
-        this.procs.pools.sort(function(m: S.Node, n: S.Node) {
+        this.procs.pools.sort(function(m: S.Server, n: S.Server) {
             if (m.hnet === n.hnet) {
                 if (m.ram - m.used_ram == n.ram - n.used_ram) {
                     if (m.ram == n.ram) {
@@ -564,11 +687,11 @@ class SFH {
             }
         });
 
-        this.procs.total_ram = this.procs.free_ram = this.procs.max_ram = 0;
+        this.procs.total_ram = this.procs.free_ram = this.procs.max_pool = 0;
         for (const pool of this.procs.pools) {
             this.procs.total_ram += pool.ram;
             this.procs.free_ram  += pool.ram - pool.used_ram;
-            this.procs.max_ram    = Math.max(this.procs.max_ram, pool.ram);
+            this.procs.max_pool   = Math.max(this.procs.max_pool, pool.ram);
         }
     }
 
@@ -598,6 +721,7 @@ class SFH {
         const proc: S.Proc = { pid: 0, alive: false, time: Date.now(),
             script, host: host.name, ram: host.ram, threads: host.threads, args };
         if (host.alloc) { proc.pids = new Set(); proc.alloc = {}; }
+
 
         const testAlloc = (host: string, ram: number) => {
             if (!(host in this.network)) {
@@ -680,19 +804,19 @@ class SFH {
         }
     }
     
-    *nodes(filter?: ((n: S.Node) => boolean)) {
-        for (const node of Object.values(this.network)) {
-            if (filter == null || filter(node)) { yield node; }
+    *servers(filter?: ((n: S.Server) => boolean)) {
+        for (const server of Object.values(this.network)) {
+            if (filter == null || filter(server)) { yield server; }
         }
     }
 
-    *pools(filter?: ((p: S.Node) => boolean)) {
+    *pools(filter?: ((p: S.Server) => boolean)) {
         for (const pool of this.procs.pools) {
             if (filter == null || filter(pool)) { yield pool; }
         }
     }
 
-    calc(target: S.Node | string, cores = 1) {
+    calc(target: S.Server | string, cores = 1) {
         if (typeof target === "string") { target = this.network[target]; }
         return new Calc(this.player, target, cores);
     }
@@ -700,9 +824,6 @@ class SFH {
     intMult(weight = 1) {
         return (1 + weight * (this.player.int ?? 0) ** 0.8 / 600);
     }
-
-    async corpUpdate(C: NS["corporation"], sleep?: (ms: number) => Promise<unknown>,
-        log?: (str: string) => unknown) { await runCorp(C, sleep, log); }
 }
 
 export default SFH;
@@ -732,7 +853,7 @@ class Calc {
     grow_mult:      number;
     weak_mult:      number;
 
-    constructor(player: S.Player, target: S.Node, cores = 1) {
+    constructor(player: S.Player, target: S.Server, cores = 1) {
         this.skill          = player.hac;
         this.skill_exp      = player.hac_exp
         this.int            = player.int;
@@ -744,14 +865,14 @@ class Calc {
         this.cur_level      = target.cur_level;
         this.req_skill      = target.skill;
         this.base_level     = target.base_level;
-        this.skill_mult     = player.mult.hac;
-        this.skill_exp_mult = player.mult.hac_exp;
-        this.hack_mult      = player.mult.hack_money;
-        this.time_mult      = player.mult.hack_time;
-        this.prob_mult      = player.mult.hack_prob;
-        this.prof_mult      = player.mult.hack_profit;
-        this.grow_mult      = player.mult.grow_rate * target.grow_mult;
-        this.weak_mult      = player.mult.weak_rate;
+        this.skill_mult     = player.mults.hac;
+        this.skill_exp_mult = player.mults.hac_exp;
+        this.hack_mult      = player.mults.hack_money;
+        this.time_mult      = player.mults.hack_time;
+        this.prob_mult      = player.mults.hack_prob;
+        this.prof_mult      = player.mults.hack_profit;
+        this.grow_mult      = player.mults.grow_rate * target.grow_mult;
+        this.weak_mult      = player.mults.weak_rate;
     }
 
     int_mult(weight = 1) { return (1 + weight * this.int ** 0.8 / 600); }

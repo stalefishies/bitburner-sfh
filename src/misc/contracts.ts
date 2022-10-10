@@ -1,4 +1,4 @@
-import { contract } from "/bin/cct.js"
+import { contract } from "/sfh/cct.js"
 
 export function autocomplete(data: any, args: any) { return data.servers; }
 
@@ -6,7 +6,7 @@ export async function main(ns: NS) {
     const node_arg = ns.args[0] as string | null;
     const file_arg = ns.args[1] as string | null;
     
-    for (let node of (node_arg ? [node_arg] : sfh.nodes())) {
+    for (let node of (node_arg ? [node_arg] : sfh.servers())) {
         if (typeof node !== "string") { node = node.name; }
 
         for (const file of (file_arg ? [file_arg] : ns.ls(node, ".cct"))) {

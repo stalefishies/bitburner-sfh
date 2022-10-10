@@ -14,10 +14,18 @@ export type Perms = {
 };
 
 export type Internals = {
-    router:   any;
-    player:   any;
-    terminal: any;
-    save():   void;
+    print(message: string, type?: "success" | "warning" | "error" | "info"): void;
+    toast(message: string, type?: "success" | "warning" | "error" | "info", duration?: number): void;
+
+    save(): Promise<void>;
+    export(): void;
+    saveRead(): Promise<any>;
+    saveReadB64(): string;
+    saveWrite(data: any, reload?: boolean): Promise<void>;
+
+    webpack: any;
+    player:  any;
+    router:  any;
 };
 
 export type UIStat = {
@@ -34,7 +42,6 @@ export type UI = {
     colours:  ReturnType<NS["ui"]["getTheme"]>;
     styles:   ReturnType<NS["ui"]["getStyles"]>;
     root:     HTMLDivElement;
-    parent:   HTMLDivElement;
     overview: HTMLDivElement;
 
     sfh:      HTMLDivElement;
@@ -71,22 +78,11 @@ export type UI = {
 
 export type Timing = {
     now:     number;
+    period:  number;
     reset:   number;
     total:   number;
     bitnode: number;
 };
-
-export type MoneyType =
-    "goal" | "upgrade" | "program" | "cluster" | "hacknet" | "stocks" | "gang";
-export type Money = {
-    curr:  number;
-    total: number;
-
-    frac:  { [type in MoneyType]: number; }
-    spent: { [type in MoneyType]: number; }
-
-    can_train: boolean;
-}
 
 export type Skills = {
     hac: number;
@@ -105,15 +101,31 @@ export type Gain = {
     rep:   number;
 } & SkillExp;
 
+export type GainType =
+    "scripts" | "work" | "sleeves" | "hacknet" | "gang" | "corp";
+export type Gains = { total: Gain } & { [ type in GainType ]: Gain; };
+
+export type SpendType =
+    "goal" | "upgrade" | "program" | "cluster" | "hacknet" | "stocks" | "gang" | "sleeves";
+
+export type Money = {
+    curr:  number;
+    total: number;
+
+    frac:  { [type in SpendType]: number; }
+    spent: { [type in SpendType]: number; }
+
+    can_class: boolean;
+};
+
 export type Org = {
     name:     string;
     faction:  boolean;
     joined:   boolean;
     finished: boolean;
-    augs:     Set<string>;
+    augs:     Set<string> & { all: Set<string>; }
     favour:   number;
     rep:      number;
-    node?:    Node;
     dual?:    string;
     title?:   string;
 };
@@ -130,6 +142,13 @@ export type Goal = Skills & {
     work: { org: Org, rep:  number }[];
     orgs: Set<Org>;
 
+    times: {
+        money: number;
+        karma: number;
+        rep:   number;
+    } & Skills;
+    time: number;
+
     corp:       boolean;
     corp_ticks: number;
 };
@@ -138,41 +157,25 @@ export type Continent = "America" | "Europe" | "Asia";
 export type City      = "Sector-12" | "Aevum" | "Volhaven" | "Chongqing" | "New Tokyo" | "Ishima";
 
 export type Work = {
-    type:  "faction" | "company" | "crime" | "program" | "gym" | "university" | "graft";
+    type:  "faction" | "company" | "crime" | "program" | "gym" | "university" | "graft"
+        | "shock" | "sync" | "bladeburner" | "infiltrate" | "support";
+    loc:   string;
     desc:  string;
-    org:   Org | null;
+
     goal:  boolean;
     focus: boolean;
-
-    //money:      number;
-    //rep:        number;
-    //skill_exp:  number;
-    //str_exp:    number;
-    //def_exp:    number;
-    //dex_exp:    number;
-    //agi_exp:    number;
-    //cha_exp:    number;
-
-    money_rate: number;
-    rep_rate:   number;
-    skill_rate: number;
-    str_rate:   number;
-    def_rate:   number;
-    dex_rate:   number;
-    agi_rate:   number;
-    cha_rate:   number;
-    int_rate:   number;
-}
+};
 
 export type State = {
     have_goal: boolean;
 
     augs: Set<string> & { queued: Set<string>; };
-    factions:  { [faction: string]: Org };
-    companies: { [company: string]: Org };
+    factions:  { [faction: string]: (Org & { faction: true  }) };
+    companies: { [company: string]: (Org & { faction: false }) };
 
-    prev_work: Work | null;
-    work:      Work | null;
+    prev_work:  Work | null;
+    work:       Work | null;
+    share_mult: number;
 
     continent: Continent | null;
     city:      City;
@@ -183,11 +186,6 @@ export type State = {
         type: "faction" | "work";
         desc: string;
     } | null;
-
-    hac_rate: number;
-    hac_time: number;
-    money_rate: number;
-    money_time: number;
 
     has_tor:          boolean;
     has_brutessh:     boolean;
@@ -260,18 +258,30 @@ export type Mults = Skills & SkillExp & {
     bb_cost:     number;
 };
 
-export type Player = Skills & SkillExp & {
+export type Person = Skills & SkillExp & {
+    mults:  Mults;
     hp:     number;
     cur_hp: number;
-    money:  number;
+} & ({
+    sleeve: false;
+    player: ReturnType<NS["getPlayer"]>;
     karma:  number;
-    mult:   Mults;
-}
+    kills:  number;
+} | {
+    sleeve: true;
+    index:  number;
+    shock:  number;
+    sync:   number;
+    city:   string;
+});
+
+export type Player = Person & { sleeve: false };
+export type Sleeve = Person & { sleeve: true  };
 
 export type Bitnode = {
     number: number;
     sf:     number[];
-    mult:   Mults;
+    mults:  Mults;
 
     donation:      number;
     stock_4S_base: number;
@@ -282,37 +292,51 @@ export type Bitnode = {
     world_daemon:  number;
 };
 
-export type Node = {
+export type Server = {
+    server:     ReturnType<NS["getServer"]>;
     name:       string;
     owned:      boolean;
     hnet:       boolean;
+
     skill:      number;
-    cores:      number;
-    used_ram:   number;
-    ram:        number;
     ip:         string;
     org:        string;
     symbol:     string | null;
+
+    ports:      number;
+    cur_ports:  number;
+    root:       boolean;
+    backdoor:   boolean;
+    target:     boolean;
+
+    ram:        number;
+    used_ram:   number;
+    cores:      number;
+    pool:       boolean;
+
     money:      number;
     cur_money:  number;
-    grow_mult:  number;
     level:      number;
     cur_level:  number;
     base_level: number;
     prepped:    boolean;
-    ports:      number;
-    cur_ports:  number;
+
+    grow_mult:  number;
     tH:         number;
     tG:         number;
     tW:         number;
-    backdoor:   boolean;
-    root:       boolean;
-    target:     boolean;
+
+    cct:        string[];
     edges:      Set<string>;
     depth:      number;
 };
 
-export type Network = { [name: string]: Node };
+export type NetworkStatus = {
+    ready:    boolean;
+    scp_args: [string[], string][];
+};
+
+export type Network = { [name: string]: Server };
 
 type Arg = (string | number | boolean);
 export type Proc = {
@@ -331,12 +355,10 @@ export type Proc = {
 
 export type Processes = {
     set:       Set<Proc>;
-    pools:     Node[];
+    pools:     Server[];
 
     home:      Proc | null;
-    corp:      Proc | null;
     backdoor:  Proc | null;
-    contract:  Proc | null;
 
     sharing: Set<Proc>;
     exp:     Set<Proc>;
@@ -344,72 +366,92 @@ export type Processes = {
 
     total_ram: number;
     free_ram:  number;
-    max_ram:   number;
+    max_pool:  number;
 };
 
-export type HackingJob = {
-    procs:     Set<Proc>;
-    time:      number;
-    end_time:  number;
-    scripts:   number;
-    dps:       number;
-} & ({
-    type:      "adhoc";
-    end_money: number;
-    end_level: number;
-} | {
-    type:      "batch";
-    quit:      boolean;
-    skill:     number;
-    t0:        number;
-    depth:     number;
-    period:    number;
-    money:     number;
-    prob:      number;
-    threads:   [number, number, number, number];
-    hosts:     [string, string, string, string][];
-});
+export type BatchLog = {
+    batch: number;
+    hac:   number;
+    quit:  boolean;
+
+    loop:  number;
+    level: number;
+    money: number;
+
+    killed:   [boolean, boolean, boolean, boolean];
+    late:     [boolean, boolean, boolean, boolean];
+    dispatch: [boolean, boolean, boolean, boolean];
+}
 
 export type HackingParams = {
-    target: Node;
-    job:    HackingJob | null;
-    prob:   number;
-    dps:    number;
-    skill:  number;
+    target:    Server;
+    calc_time: number;
+    calc_hac:  number;
+    init_time: number;
 
-    prep:   { money: number, level: number, time: number };
-    single: { threads: number; money: number; dps: number; };
-    batch:  { t0: number; depth: number; period: number; money: number;
-        threads: [number, number, number, number]; dps: number; };
+    prep: {
+        procs:     Set<Proc>;
+        end_time:  number;
+        end_money: number;
+        end_level: number;
+        time:      number;
+    };
+
+    batch: {
+        hac:     [number, number];
+        t0:      number;
+
+        period:  number;
+        kW:      number;
+        kG:      number;
+        kH:      number;
+
+        money:   number;
+        prob:    number;
+        max_dps: number;
+        threads: [number, number, number, number];
+    } & ({
+        proc:    null;
+    } | {
+        proc:    Proc;
+        log:     BatchLog[];
+        quit:    boolean;
+        scripts: number;
+        batch:   number;
+        depth:   number;
+        dps:     number;
+        delay:   [number, number, number, number];
+
+        pools: [
+            { [name: string]: { count: number, free: number } },
+            { [name: string]: { count: number, free: number } },
+            { [name: string]: { count: number, free: number } },
+            { [name: string]: { count: number, free: number } }
+        ];
+
+        running: [
+            { host: string, pid: number }[],
+            { host: string, pid: number }[],
+            { host: string, pid: number }[],
+            { host: string, pid: number }[]
+        ];
+    });
 };
 
 export type Hacking = {
-    params:     { [target: string]: HackingParams; }
-    list:       HackingParams[];
-    min_dps:    number;
-    scripts:    number;
-    batch_time: number;
-
-    dps: number;
-    exp: number;
+    params:      { [target: string]: HackingParams; }
+    list:        HackingParams[];
+    min_dps:     number;
+    scripts:     number;
+    max_scripts: number;
 };
 
-export type Sleeves = {
-    money_rate: number;
-    karma_rate: number;
-    skill_rate: number;
-    str_rate:   number;
-    def_rate:   number;
-    dex_rate:   number;
-    agi_rate:   number;
-    cha_rate:   number;
-    int_rate:   number;
-}
+export type Sleeves = Sleeve[];
 
 export type Stock = {
     symbol:    string;
     org:       string;
-    node:      Node | null;
+    server:    Server | null;
     ask_price: number;
     bid_price: number;
     spread:    number;
@@ -444,52 +486,95 @@ export type Trading = {
     total_sold:  number;
 };
 
+export type Contracts = {
+
+};
+
 export type Hacknet = {
-    hashes:   number;
-    capacity: number;
-    prod:     number;
-    dps:      number;
+    hashes:     number;
+    capacity:   number;
+    prod:       number;
+    study_mult: number;
+    train_mult: number;
 };
 
 export type Gang = {
-    state: "train" | "respect" | "reputation" | "power" | "money";
+    state: "respect" | "power" | "money";
+    members: {
+        ready:    boolean;
+        task:     string;
+        com_time: number;
+        hac_time: number;
+        cha_time: number;
+    }[];
+    prev_times: { time: number, rspct: number, power: number, money: number };
 
     can_ascend: boolean;
     train_time: number;
 
     name:  string;
     size:  number;
-    train: number;
     time:  number;
-    dps:   number;
     clash: number;
-    rep:   number;
-
-    training: [boolean, number, number, number][];
+    aug_rep: number;
 };
 
 export type Corp = {
+    reserve:    boolean;    // make space to run the corp script
+    ready:      boolean;    // can run the corp script
+    state:      number;
+
     public:     boolean;
-    wait_ticks: number;
+    funds:      number;
+    profit:     number;
     divisions:  Set<string>;
+    wait_ticks: number;
+    round:      number;
+    offer:      number;
+    div_frac:   number;
+    dividends:  number;
 
-    funds:     number;
-    profit:    number;
-    round:     number;
-    offer:     number;
-    div_frac:  number;
-    dividends: number;
-    research:  number;
-    res_rate:  number;
+    A: {
+        exists:  boolean;
+        adverts: number;
 
-    products: {
-        development: number,
-        time:        number,
-        price_ticks: number,
-        price_power: number,
-        amount:      number[],
-        change:      number[]
-    }[];
+        office: {
+            [city in City]: {
+                warehouse: boolean;
+                employees: number;
+            }
+        };
+    };
+
+    T: {
+        exists:   boolean;
+        adverts:  number;
+        research: number;
+        res_rate: number;
+
+        office: {
+            [city in City]: {
+                warehouse: boolean;
+                employees: number;
+            }
+        };
+
+        products: {
+            development: number,
+            time:        number,
+            price_ticks: number,
+            price_power: number,
+            amount:      number[],
+            change:      number[]
+        }[];
+    };
+};
+
+export type Stanek = {
+    width:  number;
+    height: number;
+
+
 };
 
 type Host = { name: string, ram: number, alloc?: { [name: string]: number }, threads: number };
@@ -509,7 +594,9 @@ declare class SFH {
     player:  Player;
     state:   State;
     money:   Money;
+    gains:   Gains;
     goal:    Goal;
+    netstat: NetworkStatus;
     network: Network;
     procs:   Processes;
     hacking: Hacking;
@@ -518,6 +605,7 @@ declare class SFH {
     hnet:    Hacknet;
     gang:    Gang;
     corp:    Corp;
+    stanek:  Stanek;
 
     constructor(sfh: { [K in keyof SFH as (SFH[K] extends Function | boolean ? never : K)]: SFH[K] });
 
@@ -532,11 +620,14 @@ declare class SFH {
     uiRemove(): void;
     uiUpdate(): void;
 
-    purchase(type: MoneyType, money: (() => number) | null, cost: number | (() => number),
+    purchase(type: SpendType, money: (() => number) | null, cost: number | (() => number),
         callback: (() => unknown) | null, frac?: number): boolean;
 
+    gainUpdate(type: Exclude<GainType, "total">, gain: Partial<Gain> | null): void;
     playerUpdate(ns: NS, player: ReturnType<NS["getPlayer"]>): void;
-    workUpdate(nsGetCurrentWork: NS["singularity"]["getCurrentWork"], nsIsFocused: NS["singularity"]["isFocused"]): void;
+    sleeveUpdate(index: number, info: ReturnType<NS["sleeve"]["getInformation"]>,
+        skills: ReturnType<NS["sleeve"]["getSleeveStats"]>): void;
+    workUpdate(nsGetCurrentWork: ReturnType<NS["singularity"]["getCurrentWork"]>, focus: boolean): void;
     goalSort(): void;
 
     netAdd(server: ReturnType<NS["getServer"]>, edges: string[], depth: number | null): void;
@@ -549,14 +640,11 @@ declare class SFH {
 
     netGC(nsIsRunning: NS["isRunning"]): void;
 
-    nodes(filter?: ((n: Node) => boolean)): Iterable<Node>;
-    pools(filter?: ((n: Node) => boolean)): Iterable<Node>;
+    servers(filter?: ((n: Server) => boolean)): Iterable<Server>;
+    pools(filter?: ((n: Server) => boolean)): Iterable<Server>;
 
-    calc(target: Node | string, cores?: number): Calc;
+    calc(target: Server | string, cores?: number): Calc;
     intMult(weight: number): number;
-
-    corpUpdate(C: NS["corporation"], sleep?: (ms: number) => Promise<unknown>, log?: (str: string) => unknown):
-        Promise<void>;
 }
 
 type CalcRet = {

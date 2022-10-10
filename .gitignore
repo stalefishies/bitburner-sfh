@@ -20,6 +20,7 @@ Thumbs.db
 
 # Ignore compiled output
 dist
+*.exe
 
 # Ignore clones of bitburner repo
 game

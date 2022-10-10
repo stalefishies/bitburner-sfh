@@ -41,10 +41,14 @@ declare global {
 
     type Skills    = S.Skills;
     type SkillExp  = S.SkillExp;
+    type Person    = S.Person;
+    type Player    = S.Player;
+    type Sleeve    = S.Sleeve;
     type City      = S.City;
     type Continent = S.Continent;
+    type Work      = S.Work;
     type Org       = S.Org;
-    type Server    = S.Node;
+    type Server    = S.Server;
     type Proc      = S.Proc;
     type Stock     = S.Stock;
 

@@ -1,126 +1,71 @@
 /*
-function augIsHacking(name, aug) {
-    if (name === "NeuroFlux Governor") { return false; }
-    if (name === "Neuroreceptor Management Implant") { return true; }
-    if (name === "CashRoot Starter Kit") { return true; }
-    if (name === "The Red Pill") { return true; }
+The value of an augmentation is a weighted sum of the logarithms of the multipliers (taking logs is needed to make the multipliers additive, the log base doesn't matter since it comes out as a final unit scaling)
 
-    return aug.mults.hacking_mult
-        || aug.mults.hacking_exp_mult
-        || aug.mults.hacking_chance_mult
-        || aug.mults.hacking_speed_mult
-        || aug.mults.hacking_money_mult
-        || aug.mults.hacking_grow_mult
-        || aug.mults.company_rep_mult
-        || aug.mults.faction_rep_mult;
-}
-
-function augHeader(ns) {
-    ns.tprintf("%54s %1s %2s %11s %8s | %4s %4s | %4s %4s %4s %4s | %4s %4s", "NAME", "H", "#F", "COST", "REP", "HACK", "EXP", "TIME", "MONE", "PROB", "GROW", "FREP", "CREP", "CHAR");
-}
-
-function augPrint(ns, name, aug) {
-    ns.tprintf("%54s %1s %2d %11s %8s | %4.2f %4.2f | %4.2f %4.2f %4.2f %4.2f | %4.2f %4.2f | %4.2f", name,
-    (sfh.state.augs.has(name) ? "#" : (sfh.state.augs.queued.has(name) ? "-" : " ")),
-    aug.factions.length, fmtm(aug.cost),
-    (aug.rep >= 1e6 ? (aug.rep / 1e6).toFixed(3) + "m" : (aug.rep / 1e3).toFixed(3) + "k"),
-    aug.mults.hacking_mult ?? 0, aug.mults.hacking_exp_mult ?? 0,
-    aug.mults.hacking_speed_mult ?? 0, aug.mults.hacking_money_mult ?? 0, aug.mults.hacking_chance_mult ?? 0, aug.mults.hacking_grow_mult ?? 0,
-    aug.mults.faction_rep_mult ?? 0, aug.mults.company_rep_mult ?? 0, aug.mults.charisma_mult ?? 0);
-}
-
-export async function main(ns) {
-    let all_augs = false;
-    if (ns.args[0] === "all") {
-        all_augs = true;
-        ns.args.shift();
-    }
-
-    const augInclude = (all_augs ? () => true : augIsHacking);
-
-    const faction = ns.args.join(" ");
-    if (faction === "list") {
-        augHeader(ns);
-        for (const name in data.augs) {
-            const aug = data.augs[name];
-            if (augInclude(name, aug)) { augPrint(ns, name, aug); }
-        }
-    } else if (faction in data.factions) {
-        augHeader(ns);
-        for (const name of data.factions[faction].augs) {
-            const aug = data.augs[name];
-            if (augInclude(name, aug)) {
-                augPrint(ns, name, aug);
-            }
-        }
-    } else {
-        augHeader(ns);
-        for (const faction in data.factions) {
-            const reqs = data.factions[faction].reqs;
-            //if (faction !== "Daedalus" && "karma" in reqs || ("combat" in reqs && faction !== "Daedalus") || "special" in reqs) { continue; }
-
-            const augs = [];
-            for (const name of data.factions[faction].augs) {
-                const aug = data.augs[name];
-                if (augInclude(name, aug)) { augs.push([name, aug]); }
-            }
-            augs.sort((a, b) => a[1].cost - b[1].cost);
-
-            if (augs.length > 0) { ns.tprintf("%s:", faction); }
-            for (const aug of augs) { augPrint(ns, aug[0], aug[1]); }
-        }
-    }
-}
-
+Weights are determined dynamically from your current stats, to push the player towards increasing stats reduced by the bitnode. They are simply the reciprocal of the current multiplier, multiplied by a stat-dependent weight (e.g. hac = 5x, str = 1x, salary = 0.25x)
 */
 
-export function autocomplete(_: unknown, args: string[]) {
-    if (args.length <= 1) {
-        return ["aug", "faction"];
-    } else if (args[0] === "aug") {
-        return Object.keys(data.augs);
-    } else if (args[0] === "faction") {
-        return Object.keys(data.factions);
-    }
-}
+const weights: Partial<typeof sfh.player.mults> = {
+    hac:           5,
+    str:           1,
+    def:           1,
+    dex:           1,
+    agi:           1,
+    cha:           1,
+    hac_exp:       2,
+    str_exp:       0.5,
+    def_exp:       0.5,
+    dex_exp:       0.5,
+    agi_exp:       0.5,
+    cha_exp:       0.5,
+    hack_money:    2,
+    hack_prob:     1,
+    hack_time:     4,
+    grow_rate:     4,
+    faction_rep:   4,
+    company_money: 0.25,
+    company_rep:   2,
+    crime_money:   0.5,
+    crime_prob:    1,
+    hacknet_prod:  4,
+    hacknet_node:  2,
+    hacknet_level: 2,
+    hacknet_ram:   2,
+    hacknet_core:  2,
+    bb_sta:        0,
+    bb_sta_gain:   0,
+    bb_analysis:   0,
+    bb_prob:       0,
+};
 
 export async function main(ns: NS) {
-    if (ns.args[0] === "aug") {
-        const aug = data.augs[ns.args.slice(1).join(" ")];
-        if (aug == null) {
-            sfh.print("{cr,!Unknown augmentation: }{cr}", ns.args[1]);
-            return;
-        }
+    const cost_mult = Math.pow(1.9 * [1, 0.96, 0.94, 0.93][sfh.bitnode.sf[11]], sfh.state.augs.queued.size);
 
-        sfh.print("{} {0,m} {0,e}", aug.name, aug.cost, aug.rep);
+    for (const faction of Object.values(sfh.state.factions)) {
+        const augs = Array.from(faction.augs.all)
+            .filter(s => s !== "NeuroFlux Governor")
+            .map(s => data.augs[s])
+            .sort((a, b) => b.cost - a.cost);
+        if (augs.length == 0) { continue; }
 
-        if (aug.prereqs.length > 0) {
-            sfh.print("PREREQS:");
-            for (const prereq of aug.prereqs) {
-                sfh.print("    {}", prereq);
-            }
-        }
+        sfh.print("\n{0,e} {3} {c*}", faction.rep, Math.floor(faction.favour),
+            (faction.joined ? "" : "y"), faction.name);
 
-        if (aug.factions.length > 0) {
-            sfh.print("FACTIONS:");
-            for (const faction of aug.factions) {
-                sfh.print("    {}", faction);
-            }
-        }
-    } else if (ns.args[0] === "faction") {
-        const faction = data.factions[ns.args.slice(1).join(" ")];
-        if (faction == null) {
-            sfh.print("{cr,!Unknown faction: }{cr}", ns.args[1]);
-            return;
-        }
-
-        sfh.print("{}", faction.name);
-
-        const augs = faction.augs.map(s => data.augs[s]);
         for (const aug of augs) {
-            const uniq = (aug.factions.length === 1 ? "!" : " ");
-            const have = (sfh.state.augs.has(aug.name) ? "#" : (sfh.state.augs.queued.has(aug.name) ? "Q" : " "));
-            sfh.print("    {54} {1} {1} {0,m} {0,e}", aug.name, uniq, have, aug.cost, aug.rep);
+            const cost = aug.cost * sfh.bitnode.mults.aug_cost;
+            const rep  = aug.rep  * sfh.bitnode.mults.aug_rep;
+
+            let value = 0;
+            for (const name of (Object.keys(aug.mults) as (keyof typeof aug.mults)[])) {
+                if (sfh.player.mults[name] > 0) {
+                    value += (weights[name] ?? 0) * Math.log2(aug.mults[name]) / sfh.player.mults[name];
+                }
+            }
+
+            sfh.print("    {54,c*} {0,m} {0,m,c*} {0,e,c*} {}    {7,4,f}",
+                sfh.state.augs.has(aug.name) ? "" : (sfh.state.augs.queued.has(aug.name) ? "c" : "y"), aug.name,
+                cost, (cost * cost_mult > sfh.money.curr ? "r" : ""), cost * cost_mult,
+                (rep > faction.rep ? "r" : ""), rep,
+                data.augs[aug.name].custom_stats ? "(*)" : "   ", value);
         }
     }
 }

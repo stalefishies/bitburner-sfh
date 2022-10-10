@@ -7,10 +7,8 @@ export async function main(ns: NS) {
         let forever = false;
         if (begin === Number.POSITIVE_INFINITY) {
             forever = true;
-        } else {
-            while (begin > performance.now()) {
-                await ns.sleep(begin - performance.now());
-            }
+        } else if (begin > performance.now()) {
+            await ns.sleep(begin - performance.now());
         }
         
         const opts: Parameters<NS["hack"]>[1] = {};
